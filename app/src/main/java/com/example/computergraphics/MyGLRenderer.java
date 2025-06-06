@@ -674,8 +674,9 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
     private Context mContext;
 
-    private Shape mShape;
-    private Cube mCube;
+    private Shape shape;
+    private Cube cube;
+    private Shape model;
     
     private float [] vpMatrix = new float[16];
     private float [] projectionMatrix = new float[16];
@@ -694,8 +695,22 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 		GLES20.glEnable(GLES20.GL_CULL_FACE);
         // GLES20.glEnable(GLES20.GL_DEPTH_TEST);
 
-        mShape = new Shape(this.mContext);
-        mCube = new Cube(this.mContext);
+        shape = new Shape(this.mContext);
+        cube = new Cube(this.mContext);
+        try {
+            AssetManager assetManager = this.mContext.getAssets();
+            InputStream objInputStream = assetManager.open("teapot.obj");
+            InputStream mtlInputStream = null;
+            try {
+                mtlInputStream = assetManager.open("teapot.mtl");
+            } catch (FileNotFoundException e) {
+                // If the mtl file is not found, we can still create the model without it
+                mtlInputStream = null; // No material file
+            }
+            model = new Shape(objInputStream, mtlInputStream, this.mContext);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void onDrawFrame(GL10 unused) {
@@ -705,27 +720,10 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         // Calculate the projection and view transformation
         Matrix.multiplyMM(vpMatrix, 0, projectionMatrix, 0, viewMatrix, 0);
         Matrix.setRotateM(rotationMatrix, 0, mAngle, 0f, 1.0f, 0.0f);
-//         // Combine the rotation matrix with the projection and camera view
-//         // Note that the vPMatrix factor *must be first* in order
-//         // for the matrix multiplication product to be correct.
-//         // Draw shape
-//         Model model = null;
-//         try {
-//             AssetManager assetManager = this.mContext.getAssets();
-//             InputStream objInputStream = assetManager.open("teapot.obj");
-//             InputStream mtlInputStream = null;
-//             try {
-//                 mtlInputStream = assetManager.open("teapot.mtl");
-//             } catch (FileNotFoundException e) {
-//                 // If the mtl file is not found, we can still create the model without it
-//                 mtlInputStream = null; // No material file
-//             }
-//             model = new Model(objInputStream, mtlInputStream, this.mContext);
-//         } catch (IOException e) {
-//             throw new RuntimeException(e);
-//         }
-        //  mShape.draw(viewMatrix, projectionMatrix, rotationMatrix);
-       mCube.draw(viewMatrix, projectionMatrix, rotationMatrix);    
+
+        // shape.draw(viewMatrix, projectionMatrix, rotationMatrix);
+        cube.draw(viewMatrix, projectionMatrix, rotationMatrix);
+        // model.draw(viewMatrix, projectionMatrix, rotationMatrix);
     }
 
     public void onSurfaceChanged(GL10 unused, int width, int height) {
@@ -759,9 +757,9 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 }
 
 class Shape {
-    protected int mProgram;
-    protected Context mContext;
-    static public int COORDS_PER_VERTEX = 3;
+    protected int program;
+    protected Context context;
+    static final public int COORDS_PER_VERTEX = 3;
     protected float color[] = { 0.63671875f, 0.76953125f, 0.22265625f, 1.0f };
     protected float modelCoords [] = {   // in counterclockwise order:
         0.0f,  0.622008459f, 0.0f, // top
@@ -769,33 +767,43 @@ class Shape {
         0.5f, -0.311004243f, 0.0f,  // bottom right
     };
     protected short drawOrder [] = { 0, 1, 2 }; // order to draw vertices
-    protected float vertexCoords [];
+    protected float vertexData [];
     protected float normalData [];
+    protected float textureCoordinateData [];
     protected FloatBuffer vertexBuffer;
     protected FloatBuffer normalBuffer;
-    protected FloatBuffer mTextureCoordinatesBuffer;
-    protected float TextureCoordinateData [];
+    protected FloatBuffer textureCoordinateBuffer;
     protected float translation [] = { 0.0f, 0.0f, 0.0f};
     protected float rotation [] = { 0.0f, 0.0f, 0.0f};
     protected float scale [] = { 1.0f, 1.0f, 1.0f };
     protected float modelMatrix [] = new float[16];
-    protected int mTextureHandle;
-    protected final int mTextureCoordinateDataSize = 2;
+    protected int textureHandle = -1; // Texture handle, -1 means no texture
+    protected final int textureCoordinateDataSize = 2;
     protected int textureCode = R.drawable.bumpy_bricks_public_domain;
     // protected int textureCode = -1; // No texture by default
 
     private final String vertexShaderCode =
+        "attribute vec2 aTextureCoordinate;" +
         "attribute vec4 vPosition;" +
+
         "uniform mat4 uMVPMatrix;" +
+
+        "varying vec2 vTextureCoordinate;" +
+
         "void main() {" +
         "   gl_Position = uMVPMatrix * vPosition;" +
+        "   vTextureCoordinate = aTextureCoordinate;" +
         "}";
 
     private final String fragmentShaderCode =
         "precision mediump float;" +
+
+        "uniform sampler2D uTexture;" +
         "uniform vec4 vColor;" +
+
+        "varying vec2 vTextureCoordinate;" +
         "void main() {" +
-        "  gl_FragColor = vColor;" +
+        "  gl_FragColor = vColor * texture2D(uTexture, vTextureCoordinate);" +
         "}";
 
     // Set color with red, green, blue and alpha (opacity) values
@@ -805,26 +813,109 @@ class Shape {
     private final int vertexStride = COORDS_PER_VERTEX * 4; // 4 bytes per vertex
 
     public Shape(Context context) {
-        this.mContext = context;
-        this.mProgram = GLES20.glCreateProgram();
+        this.context = context;
+        this.program = GLES20.glCreateProgram();
         // initialize vertex byte buffer for shape coordinates
-        this.vertexCoords = this.createVertexData(this.modelCoords, this.drawOrder);
+        this.vertexData = this.createVertexData(this.modelCoords, this.drawOrder);
+        this.createBuffer();
+        this.initProgram();
+    }
+    public Shape(InputStream objInputStream, InputStream mtlInputStream, Context mContext) {
+        this.context = mContext;
+        this.program = GLES20.glCreateProgram();
+        // BufferedReader mtlReader = null;
+        // if (mtlInputStream != null) {
+        //     mtlReader = new BufferedReader(new InputStreamReader(mtlInputStream));
+        // }
+        BufferedReader reader = new BufferedReader(new InputStreamReader(objInputStream));
+        List<Float> vertices = new ArrayList<>();
+        List<Short> faces = new ArrayList<>();
+        String line;
+        // while (true){
+        //     try {
+        //         if (mtlReader == null || (line = mtlReader.readLine()) == null) break;
+        //     } catch (IOException e) {
+        //         throw new RuntimeException(e);
+        //     }
+        //     String [] tokens = line.split(" ");
+        //     if (tokens[0].equals("newmtl")){
+        //         // ignore material names
+        //         continue;
+        //     }
+        //     else if (tokens[0].equals("map_Kd")){
+        //         // ignore texture map names
+        //         continue;
+        //     }
+        //     else if (tokens[0].equals("#")){
+        //         // ignore comments
+        //         continue;
+        //     }
+        //     else if (tokens[0].equals("map_Kd")){
+        //         String textureName = tokens[1].split(".")[0];
+        //         this.texture = this.mContext.getResources().getIdentifier(textureName, "drawable", this.mContext.getPackageName());
+        //     }
+        //     else {
+        //         // ignore other lines
+        //         continue;
+        //     }
+        // }
+        while (true){
+            try {
+                if ((line = reader.readLine()) == null) break;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            String[] tokens = line.split(" ");
+            if (tokens[0].equals("v")){
+                vertices.add(Float.parseFloat(tokens[1]));
+                vertices.add(Float.parseFloat(tokens[2]));
+                vertices.add(Float.parseFloat(tokens[3]));
+            }
+            else if (tokens[0].equals("f")){
+                int verticesCount = tokens.length;
+                short fv = (short) (Integer.parseInt(tokens[1].split("/")[0]) - 1); // vertex index
+                for (int i = 2; i < verticesCount - 1; i++){
+                    short sv = (short) (Integer.parseInt(tokens[i].split("/")[0]) - 1); // vertex index
+                    short tv = (short) (Integer.parseInt(tokens[i + 1].split("/")[0]) - 1); // vertex index
+                    faces.add(fv);
+                    faces.add(sv);
+                    faces.add(tv);
+                }
+            }
+            else if (tokens[0].equals("#")){
+                // ignore comments
+                continue;
+            }
+            else {
+                // ignore other lines
+                continue;
+            }
+        }
+        this.modelCoords = new float[vertices.size()];
+        for (int i=0; i<vertices.size(); ++i){
+            this.modelCoords[i] = vertices.get(i);
+        }
+        this.drawOrder = new short[faces.size()];
+        for (int i=0; i<faces.size(); ++i){
+            this.drawOrder[i] = faces.get(i);
+        }
+        this.vertexData = this.createVertexData(this.modelCoords, this.drawOrder);
         this.createBuffer();
         this.initProgram();
     }
     protected void createBuffer() {
-        if (this.vertexCoords != null) {
-            this.vertexBuffer = toBuffer(this.vertexCoords);
+        if (this.vertexData != null) {
+            this.vertexBuffer = toBuffer(this.vertexData);
         }
-        if (this.TextureCoordinateData != null) {
-            this.mTextureCoordinatesBuffer = toBuffer(this.TextureCoordinateData);
+        if (this.textureCoordinateData != null) {
+            this.textureCoordinateBuffer = toBuffer(this.textureCoordinateData);
         }
         if (this.normalData != null) {
             // Create a buffer for the normal data if it exists
             this.normalBuffer = toBuffer(this.normalData);
         }
     }
-    protected static FloatBuffer toBuffer(float[] data){
+    public static FloatBuffer toBuffer(float[] data){
         // Initialize a ByteBuffer for the data
         ByteBuffer byteBuffer = ByteBuffer.allocateDirect(data.length * 4);
         byteBuffer.order(ByteOrder.nativeOrder());
@@ -853,15 +944,15 @@ class Shape {
             fragmentShaderCode);
 
         // create empty OpenGL ES Program
-        GLES20.glAttachShader(this.mProgram, vertexShader);
-        GLES20.glAttachShader(this.mProgram, fragmentShader);        
+        GLES20.glAttachShader(this.program, vertexShader);
+        GLES20.glAttachShader(this.program, fragmentShader);        
         
         // if (this.textureCode != -1) {
         //     // Load texture if shader code is provided
         //     this.mTextureHandle = MyGLRenderer.loadTexture(this.mContext, this.textureCode);
         // }
 
-        GLES20.glLinkProgram(this.mProgram);
+        GLES20.glLinkProgram(this.program);
     }
     public float[] getModelMatrix(){
         // Reset the model matrix to identity
@@ -876,15 +967,40 @@ class Shape {
         Matrix.scaleM(modelMatrix, 0, scale[0], scale[1], scale[2]);
         return modelMatrix;
     }
-
+    public static int loadTexture(final Context context, final int resourceId) {
+        final int[] textureHandle = new int[1];
+        GLES20.glGenTextures(1, textureHandle, 0);
+        if (textureHandle[0] != 0) {
+            final BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inScaled = false; // No pre-scaling
+            // Load the bitmap from resources
+            final Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), resourceId, options);
+            if (bitmap == null) {
+                throw new RuntimeException("Error loading texture.");
+            }
+            // Bind to the texture in OpenGL
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureHandle[0]);
+            // Set filtering
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+            // Load the bitmap into the bound texture.
+            GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0);
+            // Recycle the bitmap, since its data has been loaded into OpenGL.
+            bitmap.recycle();
+        }
+        else {
+            throw new RuntimeException("Error loading texture.");
+        }
+        return textureHandle[0];
+    }
     public void draw(float [] vMatrix, float[] pMatrix, float[] rotationMatrix) {
         // Add program to OpenGL ES environment
-        GLES20.glUseProgram(mProgram);
+        GLES20.glUseProgram(program);
 
-        // get handle to vertex shader's vPosition member
-        positionHandle = GLES20.glGetAttribLocation(mProgram, "vPosition");
-        // get handle to fragment shader's vColor member
-        colorHandle = GLES20.glGetUniformLocation(mProgram, "vColor");
+        int positionHandle = GLES20.glGetAttribLocation(program, "vPosition");
+        int colorHandle = GLES20.glGetUniformLocation(program, "vColor");
+        int textureUniformHandle = GLES20.glGetUniformLocation(program, "uTexture");
+        int textureCoordinateHandle = GLES20.glGetAttribLocation(program, "aTextureCoordinate");
 
         // Enable a handle to the triangle vertices
         GLES20.glEnableVertexAttribArray(positionHandle);
@@ -905,13 +1021,27 @@ class Shape {
         Matrix.multiplyMM(mvpMatrix, 0, vpMatrix, 0, modelMatrix, 0);
 
         // get handle to shape's transformation matrix
-        int mvpMatrixHandle = GLES20.glGetUniformLocation(mProgram, "uMVPMatrix");
+        int mvpMatrixHandle = GLES20.glGetUniformLocation(program, "uMVPMatrix");
         // Pass the projection and view transformation to the shader
         GLES20.glUniformMatrix4fv(mvpMatrixHandle, 1, false, mvpMatrix, 0);
+        if (this.textureCoordinateBuffer != null && textureCoordinateHandle >= 0) {
+            GLES20.glEnableVertexAttribArray(textureCoordinateHandle);
+            GLES20.glVertexAttribPointer(
+                textureCoordinateHandle,
+                textureCoordinateDataSize,
+                GLES20.GL_FLOAT,
+                false,
+                0,
+                textureCoordinateBuffer
+            );
+            GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureHandle);
+            GLES20.glUniform1i(textureUniformHandle, 0);
+        }
 
         // Draw the triangle
         // GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, vertexCount);
-        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, vertexCoords.length / COORDS_PER_VERTEX);
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, vertexData.length / COORDS_PER_VERTEX);
 
         // Disable vertex array
         GLES20.glDisableVertexAttribArray(positionHandle);
@@ -1035,16 +1165,18 @@ class Cube extends Shape {
     };
     public Cube(Context context) {
         super(context);
-        this.vertexCoords = this.createVertexData(defaultCubeCoords, defaultDrawOrder);
-        this.TextureCoordinateData = defaultTextureCoordinateData;
+        this.vertexData = this.createVertexData(defaultCubeCoords, defaultDrawOrder);
+        this.textureCoordinateData = defaultTextureCoordinateData;
         this.normalData = defaultNormalData;
+        this.textureHandle = this.loadTexture(context, R.drawable.bumpy_bricks_public_domain);
         this.createBuffer();
     }
     public Cube(float[] cubeCoords, Context context) {
         super(context);
-        this.vertexCoords = this.createVertexData(cubeCoords, defaultDrawOrder);
-        this.TextureCoordinateData = defaultTextureCoordinateData;
+        this.vertexData = this.createVertexData(cubeCoords, defaultDrawOrder);
+        this.textureCoordinateData = defaultTextureCoordinateData;
         this.normalData = defaultNormalData;
+        this.textureHandle = this.loadTexture(context, R.drawable.bumpy_bricks_public_domain);
         this.createBuffer();
     }
 }
