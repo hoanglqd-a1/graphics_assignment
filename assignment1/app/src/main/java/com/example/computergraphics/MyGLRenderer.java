@@ -23,29 +23,33 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
     private Cube cube;
     private Shape model;
     private Line line;
-    private Hexa hexa;
 
     private float [] vpMatrix = new float[16];
     private float [] projectionMatrix = new float[16];
     private float [] viewMatrix = new float [16];
     private float [] rotationMatrix = new float[16];
     private float [] lightModelMatrix = new float[16];
-    public float [] eye = { 0.0f, 0.0f, 4.0f };
 
-    MyGLRenderer(Context context) {
+    public float [] eye = { 0.0f, 0.0f, 4.0f };
+    public float [] source;
+    public float [] direction;
+
+    public MyGLRenderer(Context context, float [] source, float [] direction) {
         // Constructor
         this.context = context;
+        this.source = source;
+        this.direction = direction;
     }
 
     public void onSurfaceCreated(GL10 unused, EGLConfig config) {
         GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
 		GLES20.glEnable(GLES20.GL_CULL_FACE);
+        GLES20.glEnable(GLES20.GL_DEPTH_TEST);
         // GLES20.glEnable(GLES20.GL_DEPTH_TEST);
 
         triangle = new Shape(this.context);
         cube = new Cube(this.context);
-        line = new Line(this.context);
+        line = new Line(this.context, source, direction);
         try {
             AssetManager assetManager = this.context.getAssets();
             InputStream objInputStream = assetManager.open("capsule.obj");
@@ -57,7 +61,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
     public void onDrawFrame(GL10 unused) {
         // Redraw background color
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
         Matrix.setLookAtM(viewMatrix, 0, eye[0], eye[1], eye[2], 0f, 0f, 0f, 0f, 1.0f, 0.0f);
         // Calculate the projection and view transformation
         Matrix.multiplyMM(vpMatrix, 0, projectionMatrix, 0, viewMatrix, 0);
@@ -69,17 +73,13 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         line.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
         Float [][] intersects = this.getIntersection(cube, line);
         for (int i=0; i<intersects.length; i++){
-            Shape hexa = new Hexa(new float [] {
-                intersects[i][3],
-                intersects[i][4],
-                intersects[i][5],
-            }, new float [] {
+            Log.d("Tag", "p " + intersects[i][0] + " " + intersects[i][1] + " " + intersects[i][2]);
+            Point p = new Point(new float [] {
                 intersects[i][0],
                 intersects[i][1],
                 intersects[i][2],
             }, context);
-            Log.d("tag", "intersection " + intersects[i][0] + " " + intersects[i][1] + " " + intersects[i][2]);
-            hexa.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+            p.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
         }
     }
     public void onSurfaceChanged(GL10 unused, int width, int height) {
@@ -88,7 +88,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 
         // this projection matrix is applied to object coordinates
         // in the onDrawFrame() method
-        Matrix.frustumM(projectionMatrix, 0, -ratio, ratio, -1, 1, 3, 7);
+        Matrix.frustumM(projectionMatrix, 0, -ratio, ratio, -1, 1, 2, 7);
     }
     public static int loadShader(int type, String shaderCode){
         int shader = GLES20.glCreateShader(type);
@@ -142,6 +142,36 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         }
         return intersects.toArray(new Float[0][]);
     }
+    public float [] getIntersectionLine(Line u, Line v){
+        float [] s1 = u.source;
+        float [] s2 = v.source;
+        float [] d1 = u.direction;
+        float [] d2 = v.direction;
+        float [] r = MyMatrixLib.sub(s1, s2);
+        float a = MyMatrixLib.MM(s1, s1);
+        float b = MyMatrixLib.MM(s1, s2);
+        float c = MyMatrixLib.MM(s2, s2);
+        float d = MyMatrixLib.MM(s1, r);
+        float e = MyMatrixLib.MM(s2, r);
+        float denom = a*c - b*b;
+        if (Math.abs(denom) < 1e-6){
+            return null;
+        }
+        float t = (b*e - c*d)/denom;
+        float s = (a*e - b*d)/denom;
+
+        float [] p1 = new float [] {
+            s1[0] + t*d1[0], s1[1] + t*d1[1], s1[2] + t*d1[2],
+        };
+        float [] p2 = new float [] {
+            s2[0] + t*d2[0], s2[0] + t*d2[1], s2[2] + t*d2[2],
+        };
+        float [] dis = MyMatrixLib.sub(p1, p2);
+        if (dis[0] * dis[0] + dis[1] * dis[1] + dis[2] * dis[2] < 1e-6){
+            return null;
+        }
+        return p1;
+    }
 }
 
 class Shape {
@@ -149,7 +179,7 @@ class Shape {
     protected Context context;
     static final public int COORDS_PER_VERTEX = 3;
     static final public int DIRECT_PER_NORMAL = 3;
-    protected float color[] = { 0.63671875f, 0.76953125f, 0.22265625f, 1.0f };
+    protected float [] color = { 0.63671875f, 0.76953125f, 0.22265625f, 1.0f };
     protected float modelCoords [] = {   // in counterclockwise order:
         0.0f,  0.622008459f, 0.0f, // top
         -0.5f, -0.311004243f, 0.0f, // bottom left
@@ -193,11 +223,12 @@ class Shape {
         "varying vec2 vTextureCoordinate;" +
 
         "void main() {" +
-        "   vPosition = vec3(uMVMatrix * aPosition);" +
+        // "   vPosition = vec3(uMVMatrix * aPosition);" +
         "   vColor = aColor;" +
-        "   vNormal = vec3(uMVMatrix * vec4(aNormal, 0.0));" +
+        // "   vNormal = vec3(uMVMatrix * vec4(aNormal, 0.0));" +
         "   gl_Position = uMVPMatrix * aPosition;" +
-        "   vTextureCoordinate = aTextureCoordinate;" +
+        // "   vTextureCoordinate = aTextureCoordinate;" +
+        "   gl_PointSize = 50.0;" +
         "}";
     private final String fragmentShaderCode =
         "precision mediump float;" +
@@ -216,18 +247,19 @@ class Shape {
         "varying vec2 vTextureCoordinate;" +
 
         "void main() {" +
-        "   float distance = length(uLightPosition - vPosition);" +
-        "   vec3 lightVector = normalize(uLightPosition - vPosition);" +
-        "   vec3 viewVector = normalize(uViewPosition - vPosition);" +
-        "   vec3 reflectVector = reflect(-lightVector, vNormal);" +
+        // "   float distance = length(uLightPosition - vPosition);" +
+        // "   vec3 lightVector = normalize(uLightPosition - vPosition);" +
+        // "   vec3 viewVector = normalize(uViewPosition - vPosition);" +
+        // "   vec3 reflectVector = reflect(-lightVector, vNormal);" +
 
-        "   vec3 ambient = Ka;" +
-        "   float diff = max(dot(vNormal, lightVector), 0.1);" +
-        "   vec3 diffuse = Kd * diff;" +
-        "   float spec = pow(max(dot(viewVector, reflectVector), 0.0), 32.0);" +
-        "   vec3 specular = Ks * spec;" +
-        "   vec4 lightning = vec4(ambient + diffuse + specular, 0);" +
-        "   gl_FragColor = vColor * lightning;" +
+        // "   vec3 ambient = Ka;" +
+        // "   float diff = max(dot(vNormal, lightVector), 0.1);" +
+        // "   vec3 diffuse = Kd * diff;" +
+        // "   float spec = pow(max(dot(viewVector, reflectVector), 0.0), 32.0);" +
+        // "   vec3 specular = Ks * spec;" +
+        // "   vec4 lightning = vec4(ambient + diffuse + specular, 0);" +
+        // "   gl_FragColor = vColor * lightning;" +
+        "   gl_FragColor = vColor;" +
         "}";
 
     // Set color with red, green, blue and alpha (opacity) values
@@ -235,7 +267,8 @@ class Shape {
     private int positionHandle;
     private int colorHandle;
     private final int vertexStride = COORDS_PER_VERTEX * 4; // 4 bytes per vertex
-    private final int normalStride = COORDS_PER_VERTEX * 4; 
+    private final int normalStride = COORDS_PER_VERTEX * 4;
+    protected int typ = 2;
 
     public Shape(Context context) {
         this.context = context;
@@ -485,7 +518,6 @@ class Shape {
     }
     public void draw(float [] vMatrix, float[] pMatrix, float[] rotationMatrix, float [] eye) {
         // Add program to OpenGL ES environment
-        Log.d("tag", "V " + this.vertexData[0] + " " + this.vertexData[1] + " " + this.vertexData[2]);
         GLES20.glUseProgram(program);
         Material mtl = this.mtl;
 
@@ -561,9 +593,13 @@ class Shape {
                                         normalStride, normalBuffer);
         }
 
-        // Draw the triangle
-        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, vertexData.length / COORDS_PER_VERTEX);
-
+        if (typ == 2){
+            GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, vertexData.length / COORDS_PER_VERTEX);
+        } else if(typ == 1) {
+            GLES20.glDrawArrays(GLES20.GL_LINES, 0, vertexData.length / COORDS_PER_VERTEX);
+        } else {
+            GLES20.glDrawArrays(GLES20.GL_POINTS, 0, vertexData.length / COORDS_PER_VERTEX);
+        }
         // Disable vertex array
         GLES20.glDisableVertexAttribArray(positionHandle);
     }
@@ -688,22 +724,12 @@ class Cube extends Shape {
     public Cube(Context context) {
         super(context);
         this.vertexData = this.createData(defaultCubeCoords, defaultDrawOrder, COORDS_PER_VERTEX);
-        this.mtl = new Material("default");
         this.textureCoordinateData = defaultTextureCoordinateData;
         this.normalData = defaultNormalData;
         this.lightPositionData = defaultLightPosition;
         this.textureHandle = this.loadTexture(context, R.drawable.bumpy_bricks_public_domain);
         this.createBuffer();
     }
-    // public Cube(float[] cubeCoords, Context context) {
-    //     super(context);
-    //     this.vertexData = this.createData(cubeCoords, defaultDrawOrder, COORDS_PER_VERTEX);
-    //     this.textureCoordinateData = defaultTextureCoordinateData;
-    //     this.normalData = defaultNormalData;
-    //     this.lightPositionData = defaultLightPosition;
-    //     // this.textureHandle = this.loadTexture(context, R.drawable.bumpy_bricks_public_domain);
-    //     this.createBuffer();
-    // }
 }
 class Line extends Shape {
     static float []  defaultSource = {
@@ -713,83 +739,99 @@ class Line extends Shape {
         0.1f, 0.0f, 0.1f
     };
     static int defaultMaxLength = 40;
-    static short defaultDrawOrder [] = {
-        0, 1, 2
-    };
     public float [] source;
     public float [] direction;
-    public Line(Context context){
+    public float length;
+    public Line(Context context, float [] Source, float [] Direction){
         super(context);
-        source = defaultSource;
-        direction = defaultDirection;
-        float endLine [] = {
-            defaultSource[0] + direction[0] * defaultMaxLength,
-            defaultSource[1] + direction[1] * defaultMaxLength,
-            defaultSource[2] + direction[2] * defaultMaxLength
+        source = Source;
+        float norm = (float) Math.sqrt(Direction[0] * Direction[0] + Direction[1] * Direction[1] + Direction[2] * Direction[2]);
+        direction = new float[] {
+            Direction[0] / norm,
+            Direction[1] / norm,
+            Direction[2] / norm,
         };
-        float defaultLineCoordinates [] = {
-            defaultSource[0], defaultSource[1], defaultSource[2],
-            endLine[0], endLine[1], endLine[2],
-            defaultSource[0], defaultSource[1], defaultSource[2],
+        length = defaultMaxLength;
+        float [] endpoint = new float [] {
+            source[0] + length * direction[0],
+            source[1] + length * direction[1],
+            source[2] + length * direction[2],
         };
-        this.vertexData = this.createData(defaultLineCoordinates, defaultDrawOrder, COORDS_PER_VERTEX);
-        this.mtl = new Material("default");
-        this.createBuffer();
+        vertexData = new float[] {
+            source[0], source[1], source[2],
+            endpoint[0], endpoint[1], endpoint[2],
+        };
+        color = new float [] {0f, 0f, 1f, 1f};
+        typ = 1;
+        createBuffer();
+    }
+    public Line(Context context){
+        this(context, defaultSource, defaultDirection);
     }
 }
 
-class Hexa extends Shape {
-    static float radius = 0.01f;
-    public Hexa(float [] normal, float [] center, Context context){
+// class Hexa extends Shape {
+//     static float radius = 0.01f;
+//     public Hexa(float [] normal, float [] center, Context context){
+//         super(context);
+//         // Pick an arbitrary vector not parallel to the normal
+//         float[] arbitrary = (Math.abs(normal[0]) < 0.9) ? new float[]{1, 0, 0} : new float[]{0, 1, 0};
+
+//         // Use cross product to get a perpendicular vector in the plane
+//         float[] u = MyMatrixLib.normalize(MyMatrixLib.crossProduct(normal, arbitrary));
+
+//         // Another perpendicular vector in the plane
+//         float[] v = MyMatrixLib.normalize(MyMatrixLib.crossProduct(normal, u));
+
+//         float[][] points = new float[6][3];
+
+//         for (int i = 0; i < 6; i++) {
+//             double angle = 2 * Math.PI * i / 6;
+//             float cosA = (float)Math.cos(angle);
+//             float sinA = (float)Math.sin(angle);
+
+//             points[i][0] = center[0] + radius * (u[0]*cosA + v[0]*sinA);
+//             points[i][1] = center[1] + radius * (u[1]*cosA + v[1]*sinA);
+//             points[i][2] = center[2] + radius * (u[2]*cosA + v[2]*sinA);
+//         }
+
+//         float [] coordinates = new float [21];
+//         coordinates[0] = center[0];
+//         coordinates[1] = center[1];
+//         coordinates[2] = center[2];
+//         for (int i=0; i<6; i++){
+//             for (int j=0; j<3; j++){
+//                 coordinates[i * 3 + j + 3] = points[i][j];
+//             }
+//         }
+//         short [] drawOrder = new short [] {
+//             0, 1, 2,
+//             0, 2, 3,
+//             0, 3, 4,
+//             0, 4, 5,
+//             0, 5, 6,
+//             0, 6, 1,
+//         };
+//         float normalVertex [] = new float [21];
+//         for (int i=0; i<7; i++){
+//             normalVertex[i*3  ] = normal[0];
+//             normalVertex[i*3+1] = normal[1];
+//             normalVertex[i*3+2] = normal[2];
+//         }
+//         this.vertexData = this.createData(coordinates, drawOrder, COORDS_PER_VERTEX);
+//         this.normalData = this.createData(normalVertex, drawOrder, COORDS_PER_VERTEX);
+//         this.mtl = new Material("default");
+//         this.color = new float [] {1.0f, 0.0f, 0.0f, 1.0f};
+//         this.createBuffer();
+//     }
+// }
+
+class Point extends Shape {
+    public Point(float [] coordinate, Context context){
         super(context);
-        // Pick an arbitrary vector not parallel to the normal
-        float[] arbitrary = (Math.abs(normal[0]) < 0.9) ? new float[]{1, 0, 0} : new float[]{0, 1, 0};
-
-        // Use cross product to get a perpendicular vector in the plane
-        float[] u = MyMatrixLib.normalize(MyMatrixLib.crossProduct(normal, arbitrary));
-
-        // Another perpendicular vector in the plane
-        float[] v = MyMatrixLib.normalize(MyMatrixLib.crossProduct(normal, u));
-
-        float[][] points = new float[6][3];
-
-        for (int i = 0; i < 6; i++) {
-            double angle = 2 * Math.PI * i / 6;
-            float cosA = (float)Math.cos(angle);
-            float sinA = (float)Math.sin(angle);
-
-            points[i][0] = center[0] + radius * (u[0]*cosA + v[0]*sinA);
-            points[i][1] = center[1] + radius * (u[1]*cosA + v[1]*sinA);
-            points[i][2] = center[2] + radius * (u[2]*cosA + v[2]*sinA);
-        }
-
-        float [] coordinates = new float [21];
-        coordinates[0] = center[0];
-        coordinates[1] = center[1];
-        coordinates[2] = center[2];
-        for (int i=0; i<6; i++){
-            for (int j=0; j<3; j++){
-                coordinates[i * 3 + j + 3] = points[i][j];
-            }
-        }
-        short [] drawOrder = new short [] {
-            0, 1, 2,
-            0, 2, 3,
-            0, 3, 4,
-            0, 4, 5,
-            0, 5, 6,
-            0, 6, 1,
-        };
-        float normalVertex [] = new float [21];
-        for (int i=0; i<7; i++){
-            normalVertex[i*3  ] = normal[0];
-            normalVertex[i*3+1] = normal[1];
-            normalVertex[i*3+2] = normal[2];
-        }
-        this.vertexData = this.createData(coordinates, drawOrder, COORDS_PER_VERTEX);
-        this.normalData = this.createData(normalVertex, drawOrder, COORDS_PER_VERTEX);
-        this.mtl = new Material("default");
-        this.color = new float [] {1.0f, 0.0f, 0.0f, 1.0f};
-        this.createBuffer();
+        typ = 0;
+        color = new float[] {1f, 0f, 0f, 1f};
+        vertexData = coordinate;
+        createBuffer();
     }
 }
