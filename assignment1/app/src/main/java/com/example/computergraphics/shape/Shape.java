@@ -8,8 +8,10 @@ import android.opengl.GLES20;
 import android.opengl.GLUtils;
 import android.opengl.Matrix;
 
+import com.example.computergraphics.R;
 import com.example.computergraphics.utils.Material;
 import com.example.computergraphics.MyGLRenderer;
+import com.example.computergraphics.utils.Utility;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -25,7 +27,7 @@ public class Shape {
     protected int program;
     protected Context context;
     static final public int COORDS_PER_VERTEX = 3;
-    static final public int DIRECT_PER_NORMAL = 3;
+    static final public int COORDS_PER_NORMAL = 3;
     public float [] color = { 0.63671875f, 0.76953125f, 0.22265625f, 1.0f };
     protected float modelCoords [] = {   // in counterclockwise order:
             0.0f,  0.622008459f, 0.0f, // top
@@ -55,60 +57,6 @@ public class Shape {
     protected int textureHandle = -1; // Texture handle, -1 means no texture
 
     protected final int textureCoordinateDataSize = 2;
-    private final String vertexShaderCode =
-            "uniform vec4 aColor;" +
-                    "uniform mat4 uMVPMatrix;" +
-                    "uniform mat4 uMVMatrix;" +
-
-                    "attribute vec2 aTextureCoordinate;" +
-                    "attribute vec4 aPosition;" +
-                    "attribute vec3 aNormal;" +
-
-                    "varying vec3 vPosition;" +
-                    "varying vec4 vColor;" +
-                    "varying vec3 vNormal;" +
-                    "varying vec2 vTextureCoordinate;" +
-
-                    "void main() {" +
-                    // "   vPosition = vec3(uMVMatrix * aPosition);" +
-                    "   vColor = aColor;" +
-                    // "   vNormal = vec3(uMVMatrix * vec4(aNormal, 0.0));" +
-                    "   gl_Position = uMVPMatrix * aPosition;" +
-                    // "   vTextureCoordinate = aTextureCoordinate;" +
-                    "   gl_PointSize = 30.0;" +
-                    "}";
-    private final String fragmentShaderCode =
-            "precision mediump float;" +
-
-                    "uniform vec3 uLightPosition;" +
-                    "uniform vec3 uViewPosition;" +
-                    "uniform sampler2D uTexture;" +
-                    "uniform vec3 Ka;" +
-                    "uniform vec3 Kd;" +
-                    "uniform vec3 Ks;" +
-                    "uniform float Ns;" +
-
-                    "varying vec3 vPosition;" +
-                    "varying vec4 vColor;" +
-                    "varying vec3 vNormal;" +
-                    "varying vec2 vTextureCoordinate;" +
-
-                    "void main() {" +
-                    // "   float distance = length(uLightPosition - vPosition);" +
-                    // "   vec3 lightVector = normalize(uLightPosition - vPosition);" +
-                    // "   vec3 viewVector = normalize(uViewPosition - vPosition);" +
-                    // "   vec3 reflectVector = reflect(-lightVector, vNormal);" +
-
-                    // "   vec3 ambient = Ka;" +
-                    // "   float diff = max(dot(vNormal, lightVector), 0.1);" +
-                    // "   vec3 diffuse = Kd * diff;" +
-                    // "   float spec = pow(max(dot(viewVector, reflectVector), 0.0), 32.0);" +
-                    // "   vec3 specular = Ks * spec;" +
-                    // "   vec4 lightning = vec4(ambient + diffuse + specular, 0);" +
-                    // "   gl_FragColor = vColor * lightning;" +
-                    "   gl_FragColor = vColor;" +
-                    "}";
-
     // Set color with red, green, blue and alpha (opacity) values
 
     private int positionHandle;
@@ -262,6 +210,8 @@ public class Shape {
         return data;
     }
     protected void initProgram() {
+        String vertexShaderCode = Utility.readRawTextFile(context, R.raw.vertex_shader);
+        String fragmentShaderCode = Utility.readRawTextFile(context, R.raw.fragment_shader);
         int vertexShader = MyGLRenderer.loadShader(GLES20.GL_VERTEX_SHADER,
                 vertexShaderCode);
         int fragmentShader = MyGLRenderer.loadShader(GLES20.GL_FRAGMENT_SHADER,
@@ -371,7 +321,7 @@ public class Shape {
         int mvpMatrixHandle = GLES20.glGetUniformLocation(program, "uMVPMatrix");
         int mvMatrixHandle = GLES20.glGetUniformLocation(program, "uMVMatrix");
         int textureUniformHandle = GLES20.glGetUniformLocation(program, "uTexture");
-        int colorHandle = GLES20.glGetUniformLocation(program, "aColor");
+        int colorHandle = GLES20.glGetUniformLocation(program, "uColor");
         int lightPositionHandle = GLES20.glGetUniformLocation(program, "uLightPosition");
         int viewPositionHandle = GLES20.glGetUniformLocation(program, "uViewPosition");
         int ambientHandle = GLES20.glGetUniformLocation(program, "Ka");
@@ -435,7 +385,7 @@ public class Shape {
 
         if (this.normalBuffer != null && normalHandle >= 0){
             GLES20.glEnableVertexAttribArray(normalHandle);
-            GLES20.glVertexAttribPointer(normalHandle, DIRECT_PER_NORMAL,
+            GLES20.glVertexAttribPointer(normalHandle, COORDS_PER_NORMAL,
                     GLES20.GL_FLOAT, false,
                     normalStride, normalBuffer);
         }
