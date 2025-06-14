@@ -7,9 +7,12 @@ import android.graphics.BitmapFactory;
 import android.opengl.GLES20;
 import android.opengl.GLUtils;
 import android.opengl.Matrix;
+import android.util.Log;
 
-import com.example.computergraphics.MaterialHandle;
+import com.example.computergraphics.R;
+import com.example.computergraphics.utils.MaterialHandle;
 import com.example.computergraphics.MyGLRenderer;
+import com.example.computergraphics.utils.Utility;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -51,61 +54,6 @@ public class Shape {
     protected int textureHandle = -1; // Texture handle, -1 means no texture
 
     protected final int textureCoordinateDataSize = 2;
-    private final String vertexShaderCode =
-            "uniform vec4 aColor;" +
-                    "uniform mat4 uMVPMatrix;" +
-                    "uniform mat4 uMVMatrix;" +
-
-                    "attribute vec2 aTextureCoordinate;" +
-                    "attribute vec4 aPosition;" +
-                    "attribute vec3 aNormal;" +
-
-                    "varying vec3 vPosition;" +
-                    "varying vec4 vColor;" +
-                    "varying vec3 vNormal;" +
-                    "varying vec2 vTextureCoordinate;" +
-
-                    "void main() {" +
-                    "   vPosition = vec3(uMVMatrix * aPosition);" +
-                    "   vColor = aColor;" +
-                    "   vNormal = vec3(uMVMatrix * vec4(aNormal, 0.0));" +
-                    "   gl_Position = uMVPMatrix * aPosition;" +
-                    "   vTextureCoordinate = aTextureCoordinate;" +
-                    "}";
-    private final String fragmentShaderCode =
-            "precision mediump float;" +
-
-                    "uniform vec3 uLightPosition;" +
-                    "uniform vec3 uViewPosition;" +
-                    "uniform sampler2D uTexture;" +
-                    "uniform vec3 Ka;" +
-                    "uniform vec3 Kd;" +
-                    "uniform vec3 Ks;" +
-                    "uniform float Ns;" +
-
-                    "varying vec3 vPosition;" +
-                    "varying vec4 vColor;" +
-                    "varying vec3 vNormal;" +
-                    "varying vec2 vTextureCoordinate;" +
-
-                    "void main() {" +
-                    "   float distance = length(uLightPosition - vPosition);" +
-                    "   vec3 lightVector = normalize(uLightPosition - vPosition);" +
-                    "   vec3 viewVector = normalize(uViewPosition - vPosition);" +
-                    "   vec3 reflectVector = reflect(-lightVector, vNormal);" +
-
-                    "   vec3 ambient = Ka;" +
-                    "   float diff = max(dot(vNormal, lightVector), 0.1);" +
-                    "   vec3 diffuse = Kd * diff;" +
-                    "   float spec = pow(max(dot(viewVector, reflectVector), 0.0), 32.0);" +
-                    "   vec3 specular = Ks * spec;" +
-                    "   vec4 lightning = vec4(ambient + diffuse + specular, 0);" +
-                    // "   vec4 lightning = vec4(ambient + diffuse + specular, 0);" +
-                    "   gl_FragColor = vColor * lightning * texture2D(uTexture, vTextureCoordinate);" +
-                    "}";
-
-    // Set color with red, green, blue and alpha (opacity) values
-
     private int positionHandle;
     private int colorHandle;
     private final int vertexStride = COORDS_PER_VERTEX * 4; // 4 bytes per vertex
@@ -191,6 +139,7 @@ public class Shape {
                 continue;
             }
         }
+
         this.modelCoords = new float[vertices.size()];
         this.drawOrder = new short[vfaces.size()];
         float textureCoords [] = new float[textures.size()];
@@ -215,6 +164,7 @@ public class Shape {
         for (int i=0; i<nfaces.size(); ++i){
             normalOrder[i] = nfaces.get(i);
         }
+
         this.vertexData = this.createData(this.modelCoords, this.drawOrder, COORDS_PER_VERTEX);
         this.textureCoordinateData = this.createData(textureCoords, textureOrder, 2);
         this.normalData = this.createData(normalCoords, normalOrder, 3);
@@ -255,15 +205,15 @@ public class Shape {
         return data;
     }
     protected void initProgram() {
+        String vertexShaderCode = Utility.readRawTextFile(context, R.raw.vertex_shader);
+        String fragmentShaderCode = Utility.readRawTextFile(context, R.raw.fragment_shader);
         int vertexShader = MyGLRenderer.loadShader(GLES20.GL_VERTEX_SHADER,
                 vertexShaderCode);
         int fragmentShader = MyGLRenderer.loadShader(GLES20.GL_FRAGMENT_SHADER,
                 fragmentShaderCode);
-
         // create empty OpenGL ES Program
         GLES20.glAttachShader(this.program, vertexShader);
         GLES20.glAttachShader(this.program, fragmentShader);
-
         GLES20.glLinkProgram(this.program);
     }
     public float[] getModelMatrix(){

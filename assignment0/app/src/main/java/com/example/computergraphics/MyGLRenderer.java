@@ -5,14 +5,9 @@ import javax.microedition.khronos.opengles.GL10;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
-import java.nio.*;
-import java.util.*;
 import java.io.*;
 import android.content.res.AssetManager;
 import android.content.Context;
-import android.graphics.BitmapFactory;
-import android.graphics.Bitmap;
-import android.opengl.GLUtils;
 import com.example.computergraphics.shape.*;
 
 public class MyGLRenderer implements GLSurfaceView.Renderer {
