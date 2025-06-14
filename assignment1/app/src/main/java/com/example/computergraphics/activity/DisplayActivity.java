@@ -1,9 +1,10 @@
-package com.example.computergraphics;
+package com.example.computergraphics.activity;
 
 import android.app.Activity;
 import android.os.Bundle;
 import android.content.Intent;
-import android.util.Log;
+
+import com.example.computergraphics.MyGLSurfaceView;
 
 public class DisplayActivity extends Activity {
     private MyGLSurfaceView glView;

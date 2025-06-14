@@ -1,4 +1,4 @@
-package com.example.computergraphics;
+package com.example.computergraphics.utils;
 
 public class Material {
     public String name;
