@@ -24,6 +24,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
     private Cube cube;
     private Shape model;
     private Line line;
+    private Sphere sphere;
 
     private float [] vpMatrix = new float[16];
     private float [] projectionMatrix = new float[16];
@@ -47,15 +48,19 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
 		GLES20.glEnable(GLES20.GL_CULL_FACE);
         GLES20.glEnable(GLES20.GL_DEPTH_TEST);
-        
-        GLES20.glLineWidth(5.0f);
+        GLES20.glLineWidth(10.0f);
 
         triangle = new Shape(this.context);
         cube = new Cube(this.context);
         line = new Line(source, direction, 40, context);
         try {
+            sphere = new Sphere(context);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        try {
             AssetManager assetManager = this.context.getAssets();
-            InputStream objInputStream = assetManager.open("capsule.obj");
+            InputStream objInputStream = assetManager.open("sphere.obj");
             model = new Shape(objInputStream, this.context);
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -71,23 +76,30 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         Matrix.setRotateM(rotationMatrix, 0, mAngle, 0f, 1.0f, 0.0f);
 
 //        triangle.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
-        cube.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//        cube.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
 //        model.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
         line.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
-        MyComposite com = Utility.getIntersection(cube, line, context);
-        float [][] intersects = com.intersections;
-        for (int i=0; i<intersects.length; i++){
-            Point p = new Point(new float [] {
-                intersects[i][0],
-                intersects[i][1],
-                intersects[i][2],
-            }, context);
+        sphere.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//        MyComposite com = Utility.getIntersection(model, line, context);
+//        float [][] intersects = com.intersections;
+//        for (int i=0; i<intersects.length; i++){
+//            Point p = new Point(new float [] {
+//                intersects[i][0],
+//                intersects[i][1],
+//                intersects[i][2],
+//            }, context);
+//            p.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//        }
+//        Line [] lines = com.lines;
+//        for (int i=0; i<lines.length; i++){
+//            lines[i].color = new float[] {1f, 1f, 1f, 1f} ;
+//            lines[i].draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//        }
+        float [][] intersections = Utility.getIntersectionLineSphere(line, sphere);
+        for (float [] intersection : intersections){
+            Log.d("Tag", Arrays.toString(intersection));
+            Point p = new Point(intersection, context);
             p.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
-        }
-        Line [] lines = com.lines;
-        for (int i=0; i<lines.length; i++){
-            lines[i].color = new float[] {1f, 1f, 1f, 1f} ;
-            lines[i].draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
         }
     }
     public void onSurfaceChanged(GL10 unused, int width, int height) {

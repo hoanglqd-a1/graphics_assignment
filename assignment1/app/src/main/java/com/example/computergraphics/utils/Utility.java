@@ -1,11 +1,12 @@
 package com.example.computergraphics.utils;
 
 import com.example.computergraphics.shape.Line;
-import com.example.computergraphics.shape.Shape;
+import com.example.computergraphics.shape.*;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.io.*;
+import android.util.Log;
 
 import android.content.Context;
 public class Utility {
@@ -29,11 +30,15 @@ public class Utility {
     public static MyComposite getIntersection(Shape s, Line l, Context context){
         List<float[]> intersects = new ArrayList<>();
         List<Line> lines = new ArrayList<>();
-        for (int i=0; i<s.vertexData.length; i+= 3 * Shape.COORDS_PER_VERTEX){
-            float [] normal = {s.normalData[i], s.normalData[i+1], s.normalData[i+2]};
+        Log.d("Tag", "S " + s.normalData.length);
+        for (int i=0; i<s.vertexData.length; i += 3 * Shape.COORDS_PER_VERTEX){
+//            float [] normal = {s.normalData[i], s.normalData[i+1], s.normalData[i+2]};
             float [] v0 = {s.vertexData[i  ], s.vertexData[i+1], s.vertexData[i+2]};
             float [] v1 = {s.vertexData[i+3], s.vertexData[i+4], s.vertexData[i+5]};
             float [] v2 = {s.vertexData[i+6], s.vertexData[i+7], s.vertexData[i+8]};
+            float [] v0v2temp = MyMatrixLib.sub(v2, v0);
+            float [] v0v1temp = MyMatrixLib.sub(v1, v0);
+            float [] normal = MyMatrixLib.normalize(MyMatrixLib.crossProduct(v0v1temp, v0v2temp));
             // Log.d("tag", "v "   + v0[0] + " " + v0[1] + " " + v0[2] + " "
             //                     + v1[0] + " " + v1[1] + " " + v1[2] + " "
             //                     + v2[0] + " " + v2[1] + " " + v2[2] + " ");
@@ -124,5 +129,35 @@ public class Utility {
             return null;
         }
         return p1;
+    }
+    public static float [][] getIntersectionLineSphere(Line u, Sphere s){
+        float [] center2Source = MyMatrixLib.sub(u.source, s.center);
+        // Solve quadratic function
+        float a = MyMatrixLib.MM(u.direction, u.direction);
+        float b = 2 * MyMatrixLib.MM(u.direction, center2Source);
+        float c = MyMatrixLib.MM(center2Source, center2Source) - s.radius * s.radius;
+        float squaredDelta = b*b - 4*a*c;
+        if (squaredDelta < -1e-6){
+            return null;
+        }
+        if (squaredDelta < 1e-6){
+            float t = -b / (2*a);
+            if (t < 0){
+                return null;
+            }
+            return new float[][] {MyMatrixLib.add(u.source, MyMatrixLib.mul(u.direction, t))};
+        }
+        float delta = (float)Math.sqrt(squaredDelta);
+        float t1 = (-b - delta) / (2 * a);
+        float t2 = (-b + delta) / (2 * a);
+        List<float[]> intersections = new ArrayList<>();
+        float epsilon = 1e-4f;
+        if (t1 > -1e-6){
+            intersections.add(MyMatrixLib.add(u.source, MyMatrixLib.mul(u.direction, t1 - epsilon)));
+        }
+        if (t2 > -1e-6){
+            intersections.add(MyMatrixLib.add(u.source, MyMatrixLib.mul(u.direction, t2 + epsilon)));
+        }
+        return intersections.toArray(new float[0][]);
     }
 }

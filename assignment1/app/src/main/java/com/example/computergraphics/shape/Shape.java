@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory;
 import android.opengl.GLES20;
 import android.opengl.GLUtils;
 import android.opengl.Matrix;
+import android.util.Log;
 
 import com.example.computergraphics.R;
 import com.example.computergraphics.utils.Material;
@@ -34,7 +35,7 @@ public class Shape {
             -0.5f, -0.311004243f, 0.0f, // bottom left
             0.5f, -0.311004243f, 0.0f,  // bottom right
     };
-    protected short drawOrder [] = { 0, 1, 2 }; // order to draw vertices
+    protected int drawOrder [] = { 0, 1, 2 }; // order to draw vertices
     public float vertexData [];
     public float normalData [] = {
             0f, 0f, 1f,
@@ -50,7 +51,7 @@ public class Shape {
 
     protected float translation [] = { 0.0f, 0.0f, 0.0f};
     protected float rotation [] = { 0.0f, 0.0f, 0.0f};
-    protected float scale [] = { 1.0f, 1.0f, 1.0f };
+    public float scale [] = { 1.0f, 1.0f, 1.0f };
     protected float modelMatrix [] = new float[16];
 
     protected Material mtl;
@@ -77,13 +78,14 @@ public class Shape {
     public Shape(InputStream objInputStream, Context context) {
         this.context = context;
         this.program = GLES20.glCreateProgram();
+        this.mtl = new Material("default");
         BufferedReader reader = new BufferedReader(new InputStreamReader(objInputStream));
         List<Float> vertices = new ArrayList<>();
         List<Float> textures = new ArrayList<>();
         List<Float> normals = new ArrayList<>();
-        List<Short> vfaces = new ArrayList<>();
-        List<Short> tfaces = new ArrayList<>();
-        List<Short> nfaces = new ArrayList<>();
+        List<Integer> vfaces = new ArrayList<>();
+        List<Integer> tfaces = new ArrayList<>();
+        List<Integer> nfaces = new ArrayList<>();
         String line;
         while (true){
             try {
@@ -100,7 +102,7 @@ public class Shape {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-                this.mtl = this.readMtl(mtlfile);
+//                this.mtl = this.readMtl(mtlfile);
             }
             if (tokens[0].equals("v")){
                 vertices.add(Float.parseFloat(tokens[1]));
@@ -122,18 +124,18 @@ public class Shape {
                 for (int i = 2; i < verticesCount - 1; i++){
                     String [] token2 = tokens[i].split("/");
                     String [] token3 = tokens[i+1].split("/");
-                    vfaces.add((short) (Integer.parseInt(token1[0]) - 1));
-                    vfaces.add((short) (Integer.parseInt(token2[0]) - 1));
-                    vfaces.add((short) (Integer.parseInt(token3[0]) - 1));
+                    vfaces.add(Integer.parseInt(token1[0]) - 1);
+                    vfaces.add(Integer.parseInt(token2[0]) - 1);
+                    vfaces.add(Integer.parseInt(token3[0]) - 1);
                     if (token1.length >= 2 && token1[1] != ""){
-                        tfaces.add((short) (Integer.parseInt(token1[1]) - 1));
-                        tfaces.add((short) (Integer.parseInt(token2[1]) - 1));
-                        tfaces.add((short) (Integer.parseInt(token3[1]) - 1));
+                        tfaces.add(Integer.parseInt(token1[1]) - 1);
+                        tfaces.add(Integer.parseInt(token2[1]) - 1);
+                        tfaces.add(Integer.parseInt(token3[1]) - 1);
                     }
                     if (token1.length == 3 && token1[1] != ""){
-                        nfaces.add((short) (Integer.parseInt(token1[2]) - 1));
-                        nfaces.add((short) (Integer.parseInt(token2[2]) - 1));
-                        nfaces.add((short) (Integer.parseInt(token3[2]) - 1));
+                        nfaces.add(Integer.parseInt(token1[2]) - 1);
+                        nfaces.add(Integer.parseInt(token2[2]) - 1);
+                        nfaces.add(Integer.parseInt(token3[2]) - 1);
                     }
                 }
             }
@@ -147,11 +149,11 @@ public class Shape {
             }
         }
         this.modelCoords = new float[vertices.size()];
-        this.drawOrder = new short[vfaces.size()];
+        this.drawOrder = new int[vfaces.size()];
         float textureCoords [] = new float[textures.size()];
-        short textureOrder [] = new short[tfaces.size()];
+        int textureOrder [] = new int[tfaces.size()];
         float normalCoords [] = new float [normals.size()];
-        short normalOrder [] = new short[nfaces.size()];
+        int normalOrder [] = new int[nfaces.size()];
         for (int i=0; i<vertices.size(); ++i){
             this.modelCoords[i] = vertices.get(i);
         }
@@ -199,10 +201,10 @@ public class Shape {
         buffer.position(0);
         return buffer;
     }
-    protected float [] createData (float[] coords, short[] order, int stride) {
+    protected float [] createData (float[] coords, int[] order, int stride) {
         float [] data = new float[order.length * stride];
         for (int i = 0; i < order.length; i++){
-            short index = order[i];
+            int index = order[i];
             for (int j = 0; j < stride; j++){
                 data[i * stride + j] = coords[index * stride + j];
             }

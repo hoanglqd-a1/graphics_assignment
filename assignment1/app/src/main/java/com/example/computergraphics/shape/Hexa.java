@@ -39,7 +39,7 @@ public class Hexa extends Shape {
                  coordinates[i * 3 + j + 3] = points[i][j];
              }
          }
-         short [] drawOrder = new short [] {
+         int [] drawOrder = new int [] {
              0, 1, 2,
              0, 2, 3,
              0, 3, 4,
