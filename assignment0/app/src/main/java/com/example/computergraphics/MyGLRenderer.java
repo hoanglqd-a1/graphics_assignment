@@ -8,45 +8,46 @@ import android.opengl.Matrix;
 import java.io.*;
 import android.content.res.AssetManager;
 import android.content.Context;
-import com.example.computergraphics.shape.*;
+import com.example.computergraphics.object.*;
 
 public class MyGLRenderer implements GLSurfaceView.Renderer {
-
     private Context context;
-
-    private Shape shape;
+    private float [] userInputLineSource;
+    private float [] userInputLineDirection;
+    private GraphicObject object;
     private Cube cube;
-    private Shape model;
-
+    private GraphicObject model;
+    private Line line;
     private float [] vpMatrix = new float[16];
     private float [] projectionMatrix = new float[16];
     private float [] viewMatrix = new float [16];
     private float [] rotationMatrix = new float[16];
     private float [] lightModelMatrix = new float[16];
     public float [] eye = { 0.0f, 2.0f, 5.0f };
-
-    MyGLRenderer(Context context) {
+    MyGLRenderer(float [] source, float [] direction, Context context) {
         // Constructor
         this.context = context;
+        this.userInputLineSource = source;
+        this.userInputLineDirection = direction;
     }
-
     public void onSurfaceCreated(GL10 unused, EGLConfig config) {
         GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
 		GLES20.glEnable(GLES20.GL_CULL_FACE);
         // GLES20.glEnable(GLES20.GL_DEPTH_TEST);
+        GLES20.glLineWidth(10.0f);
 
-        shape = new Shape(this.context);
-        cube = new Cube(this.context);
+        object = new GraphicObject(this.context);
+        cube = new Cube(context);
+        line = new Line(userInputLineSource, userInputLineDirection, -1, context);
         try {
             AssetManager assetManager = this.context.getAssets();
             InputStream objInputStream = assetManager.open("capsule.obj");
-            model = new Shape(objInputStream, this.context);
+            model = new GraphicObject(objInputStream, this.context);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
-
     public void onDrawFrame(GL10 unused) {
         // Redraw background color
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
@@ -55,11 +56,11 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         Matrix.multiplyMM(vpMatrix, 0, projectionMatrix, 0, viewMatrix, 0);
         Matrix.setRotateM(rotationMatrix, 0, mAngle, 0f, 1.0f, 0.0f);
 
-        // shape.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
-        // cube.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
-        model.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//         shape.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//         cube.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//        model.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+        line.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
     }
-
     public void onSurfaceChanged(GL10 unused, int width, int height) {
         GLES20.glViewport(0, 0, width, height);
         float ratio = (float) width / height;
@@ -68,10 +69,8 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         // in the onDrawFrame() method
         Matrix.frustumM(projectionMatrix, 0, -ratio, ratio, -1, 1, 1, 10);
     }
-
     public static int loadShader(int type, String shaderCode){
         int shader = GLES20.glCreateShader(type);
-
         // add the source code to the shader and compile it
         GLES20.glShaderSource(shader, shaderCode);
         GLES20.glCompileShader(shader);

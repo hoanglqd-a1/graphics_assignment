@@ -1,4 +1,4 @@
-package com.example.computergraphics.shape;
+package com.example.computergraphics.object;
 
 import android.content.Context;
 import android.content.res.AssetManager;
@@ -10,7 +10,7 @@ import android.opengl.Matrix;
 import android.util.Log;
 
 import com.example.computergraphics.R;
-import com.example.computergraphics.utils.MaterialHandle;
+import com.example.computergraphics.utils.MaterialFileHandle;
 import com.example.computergraphics.MyGLRenderer;
 import com.example.computergraphics.utils.Utility;
 
@@ -24,23 +24,26 @@ import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Shape {
+public class GraphicObject {
     protected int program;
     protected Context context;
     static final public int COORDS_PER_VERTEX = 3;
-    static final public int DIRECT_PER_NORMAL = 3;
+    static final public int COORDS_PER_NORMAL = 3;
     protected float color[] = { 0.63671875f, 0.76953125f, 0.22265625f, 1.0f };
-    protected float modelCoords [] = {   // in counterclockwise order:
-            0.0f,  0.622008459f, 0.0f, // top
-            -0.5f, -0.311004243f, 0.0f, // bottom left
-            0.5f, -0.311004243f, 0.0f,  // bottom right
+    public static float defaultVertexData [] = {   // in counterclockwise order:
+        0.0f,  0.622008459f, 0.0f, // top
+        -0.5f, -0.311004243f, 0.0f, // bottom left
+        0.5f, -0.311004243f, 0.0f,  // bottom right
     };
-    protected short drawOrder [] = { 0, 1, 2 }; // order to draw vertices
+    public static float defaultNormalData [] = {
+        0f, 0f, 1f,
+        0f, 0f, 1f,
+        0f, 0f, 1f,
+    };
     protected float vertexData [];
     protected float normalData [];
     protected float lightPositionData [] ;
     protected float textureCoordinateData [];
-
     protected FloatBuffer vertexBuffer;
     protected FloatBuffer normalBuffer;
     protected FloatBuffer textureCoordinateBuffer;
@@ -50,24 +53,28 @@ public class Shape {
     protected float scale [] = { 1.0f, 1.0f, 1.0f };
     protected float modelMatrix [] = new float[16];
 
-    protected MaterialHandle mtl;
+    protected MaterialFileHandle mtl;
     protected int textureHandle = -1; // Texture handle, -1 means no texture
 
     protected final int textureCoordinateDataSize = 2;
-    private int positionHandle;
-    private int colorHandle;
-    private final int vertexStride = COORDS_PER_VERTEX * 4; // 4 bytes per vertex
-    private final int normalStride = COORDS_PER_VERTEX * 4;
-
-    public Shape(Context context) {
+    protected final int vertexStride = COORDS_PER_VERTEX * 4; // 4 bytes per vertex
+    protected final int normalStride = COORDS_PER_VERTEX * 4;
+    public final int typ = 2;
+    public GraphicObject(float [] vertexData, float [] normalData, float [] textureCoordinateData, int program, Context context){
+        this.vertexData = vertexData;
+        this.normalData = normalData;
+        this.textureCoordinateData = textureCoordinateData;
+        this.program = program;
         this.context = context;
-        this.program = GLES20.glCreateProgram();
-        // initialize vertex byte buffer for shape coordinates
-        this.vertexData = this.createData(this.modelCoords, this.drawOrder, COORDS_PER_VERTEX);
+        this.mtl = new MaterialFileHandle("default");
         this.createBuffer();
         this.initProgram();
     }
-    public Shape(InputStream objInputStream, Context context) {
+    public GraphicObject(Context context) {
+        this(defaultVertexData, defaultNormalData, null,
+                GLES20.glCreateProgram(), context);
+    }
+    public GraphicObject(InputStream objInputStream, Context context) {
         this.context = context;
         this.program = GLES20.glCreateProgram();
         BufferedReader reader = new BufferedReader(new InputStreamReader(objInputStream));
@@ -93,7 +100,7 @@ public class Shape {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-                this.mtl = this.readMtl(mtlfile);
+                this.mtl = this.readMaterialFile(mtlfile);
             }
             if (tokens[0].equals("v")){
                 vertices.add(Float.parseFloat(tokens[1]));
@@ -139,18 +146,20 @@ public class Shape {
                 continue;
             }
         }
-
-        this.modelCoords = new float[vertices.size()];
-        this.drawOrder = new short[vfaces.size()];
+        if (this.mtl == null){
+            this.mtl = new MaterialFileHandle("default");
+        }
+        float [] modelCoords = new float[vertices.size()];
+        short [] drawOrder = new short[vfaces.size()];
         float textureCoords [] = new float[textures.size()];
         short textureOrder [] = new short[tfaces.size()];
         float normalCoords [] = new float [normals.size()];
         short normalOrder [] = new short[nfaces.size()];
         for (int i=0; i<vertices.size(); ++i){
-            this.modelCoords[i] = vertices.get(i);
+            modelCoords[i] = vertices.get(i);
         }
         for (int i=0; i<vfaces.size(); ++i){
-            this.drawOrder[i] = vfaces.get(i);
+            drawOrder[i] = vfaces.get(i);
         }
         for (int i=0; i<textures.size(); ++i){
             textureCoords[i] = textures.get(i);
@@ -165,9 +174,9 @@ public class Shape {
             normalOrder[i] = nfaces.get(i);
         }
 
-        this.vertexData = this.createData(this.modelCoords, this.drawOrder, COORDS_PER_VERTEX);
-        this.textureCoordinateData = this.createData(textureCoords, textureOrder, 2);
-        this.normalData = this.createData(normalCoords, normalOrder, 3);
+        this.vertexData = createData(modelCoords, drawOrder, COORDS_PER_VERTEX);
+        this.textureCoordinateData = createData(textureCoords, textureOrder, 2);
+        this.normalData = createData(normalCoords, normalOrder, 3);
         this.createBuffer();
         this.initProgram();
     }
@@ -194,7 +203,7 @@ public class Shape {
         buffer.position(0);
         return buffer;
     }
-    protected float [] createData (float[] coords, short[] order, int stride) {
+    static float [] createData (float[] coords, short[] order, int stride) {
         float [] data = new float[order.length * stride];
         for (int i = 0; i < order.length; i++){
             short index = order[i];
@@ -255,10 +264,10 @@ public class Shape {
         }
         return textureHandle[0];
     }
-    protected MaterialHandle readMtl (InputStream mtlFile){
+    protected MaterialFileHandle readMaterialFile (InputStream mtlFile){
         BufferedReader reader = new BufferedReader(new InputStreamReader(mtlFile));
         // HashMap<String, Material> mtls = new HashMap<>();
-        MaterialHandle curr = null;
+        MaterialFileHandle curr = null;
         String line;
         while (true) {
             try {
@@ -268,7 +277,7 @@ public class Shape {
             }
             String [] tokens = line.split(" ");
             if (tokens[0].equals("newmtl")){
-                curr = new MaterialHandle(tokens[1]);
+                curr = new MaterialFileHandle(tokens[1]);
             }
             else if (tokens[0].equals("Ka")){
                 curr.Ka = new float [] {
@@ -309,12 +318,21 @@ public class Shape {
     public void draw(float [] vMatrix, float[] pMatrix, float[] rotationMatrix, float [] eye) {
         // Add program to OpenGL ES environment
         GLES20.glUseProgram(program);
-        MaterialHandle mtl = this.mtl;
+
+        int[] linkStatus = new int[1];
+        GLES20.glGetProgramiv(program, GLES20.GL_LINK_STATUS, linkStatus, 0);
+        if (linkStatus[0] == 0) {
+            // Linking failed
+            Log.e("Shader", "Program linking failed.");
+            Log.e("Shader", GLES20.glGetProgramInfoLog(program));
+        }
 
         int mvpMatrixHandle = GLES20.glGetUniformLocation(program, "uMVPMatrix");
         int mvMatrixHandle = GLES20.glGetUniformLocation(program, "uMVMatrix");
+        int useTexture = GLES20.glGetUniformLocation(program, "uUseTexture");
+        int useNormal = GLES20.glGetUniformLocation(program, "uUseNormal");
         int textureUniformHandle = GLES20.glGetUniformLocation(program, "uTexture");
-        int colorHandle = GLES20.glGetUniformLocation(program, "aColor");
+        int colorHandle = GLES20.glGetUniformLocation(program, "uColor");
         int lightPositionHandle = GLES20.glGetUniformLocation(program, "uLightPosition");
         int viewPositionHandle = GLES20.glGetUniformLocation(program, "uViewPosition");
         int ambientHandle = GLES20.glGetUniformLocation(program, "Ka");
@@ -351,15 +369,17 @@ public class Shape {
         GLES20.glUniformMatrix4fv(mvMatrixHandle, 1, false, mvMatrix, 0);
 
         this.textureHandle = mtl.textureHandle;
+        GLES20.glUniform1i(useTexture, 0);
         if (this.textureCoordinateBuffer != null && textureCoordinateHandle >= 0) {
             GLES20.glEnableVertexAttribArray(textureCoordinateHandle);
+            GLES20.glUniform1i(useTexture, 1);
             GLES20.glVertexAttribPointer(
-                    textureCoordinateHandle,
-                    textureCoordinateDataSize,
-                    GLES20.GL_FLOAT,
-                    false,
-                    0,
-                    textureCoordinateBuffer
+                textureCoordinateHandle,
+                textureCoordinateDataSize,
+                GLES20.GL_FLOAT,
+                false,
+                0,
+                textureCoordinateBuffer
             );
             GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureHandle);
@@ -377,13 +397,12 @@ public class Shape {
         GLES20.glUniform3fv(specularHandle, 1, mtl.Ks, 0);
 
         if (this.normalBuffer != null && normalHandle >= 0){
+            GLES20.glUniform1i(useNormal, 1);
             GLES20.glEnableVertexAttribArray(normalHandle);
-            GLES20.glVertexAttribPointer(normalHandle, DIRECT_PER_NORMAL,
-                    GLES20.GL_FLOAT, false,
-                    normalStride, normalBuffer);
+            GLES20.glVertexAttribPointer(normalHandle, COORDS_PER_NORMAL,
+                GLES20.GL_FLOAT, false,
+                normalStride, normalBuffer);
         }
-
-        // Draw the triangle
         GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, vertexData.length / COORDS_PER_VERTEX);
 
         // Disable vertex array

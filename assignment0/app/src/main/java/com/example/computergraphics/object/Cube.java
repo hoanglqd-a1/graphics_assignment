@@ -1,10 +1,9 @@
-package com.example.computergraphics.shape;
+package com.example.computergraphics.object;
 
 import android.content.Context;
+import android.opengl.GLES20;
 
-import com.example.computergraphics.R;
-
-public class Cube extends Shape {
+public class Cube extends GraphicObject {
     static float defaultCubeCoords[] = {
             -0.5f,  0.5f, 0.5f,   // top left front
             -0.5f, -0.5f, 0.5f,   // bottom left front
@@ -121,21 +120,18 @@ public class Cube extends Shape {
             1.0f, 0.0f,
     };
     public Cube(Context context) {
-        super(context);
-        this.vertexData = this.createData(defaultCubeCoords, defaultDrawOrder, COORDS_PER_VERTEX);
-        this.textureCoordinateData = defaultTextureCoordinateData;
-        this.normalData = defaultNormalData;
-        this.lightPositionData = defaultLightPosition;
-        this.textureHandle = this.loadTexture(context, R.drawable.bumpy_bricks_public_domain);
-        this.createBuffer();
+//        super(context);
+//        this.vertexData = this.createData(defaultCubeCoords, defaultDrawOrder, COORDS_PER_VERTEX);
+//        this.textureCoordinateData = defaultTextureCoordinateData;
+//        this.normalData = defaultNormalData;
+//        this.lightPositionData = defaultLightPosition;
+//        this.textureHandle = this.loadTexture(context, R.drawable.bumpy_bricks_public_domain);
+//        this.createBuffer();
+        this(createData(defaultCubeCoords, defaultDrawOrder, 3),
+            defaultNormalData, null,
+            GLES20.glCreateProgram(), context);
     }
-    public Cube(float[] cubeCoords, Context context) {
-        super(context);
-        this.vertexData = this.createData(cubeCoords, defaultDrawOrder, COORDS_PER_VERTEX);
-        this.textureCoordinateData = defaultTextureCoordinateData;
-        this.normalData = defaultNormalData;
-        this.lightPositionData = defaultLightPosition;
-        // this.textureHandle = this.loadTexture(context, R.drawable.bumpy_bricks_public_domain);
-        this.createBuffer();
+    public Cube(float [] vertexData, float [] normalData, float [] textureData, int program, Context context){
+        super(vertexData, normalData, textureData, program, context);
     }
 }

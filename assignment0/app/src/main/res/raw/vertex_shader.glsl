@@ -1,6 +1,8 @@
-uniform vec4 aColor;
+uniform vec4 uColor;
 uniform mat4 uMVPMatrix;
 uniform mat4 uMVMatrix;
+uniform bool uUseTexture;
+uniform bool uUseNormal;
 
 attribute vec2 aTextureCoordinate;
 attribute vec4 aPosition;
@@ -13,8 +15,12 @@ varying vec2 vTextureCoordinate;
 
 void main() {
     vPosition = vec3(uMVMatrix * aPosition);
-    vColor = aColor;
-    vNormal = vec3(uMVMatrix * vec4(aNormal, 0.0));
+    vColor = uColor;
+    if (uUseNormal){
+        vNormal = vec3(uMVMatrix * vec4(aNormal, 0.0));
+    }
     gl_Position = uMVPMatrix * aPosition;
-    vTextureCoordinate = aTextureCoordinate;
+    if (uUseTexture){
+        vTextureCoordinate = aTextureCoordinate;
+    }
 }
