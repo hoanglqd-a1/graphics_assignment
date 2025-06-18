@@ -1,7 +1,7 @@
 package com.example.computergraphics.object;
 
 import android.content.Context;
-import android.opengl.GLES20;
+import android.opengl.GLES30;
 
 import com.example.computergraphics.R;
 
@@ -123,7 +123,7 @@ public class Cube extends GraphicObject {
     public Cube(Context context) {
         this(createData(defaultCubeCoords, defaultDrawOrder, 3),
             defaultNormalData, defaultTextureCoordinateData,
-            GLES20.glCreateProgram(), context);
+            GLES30.glCreateProgram(), context);
         mtl.textureHandle = loadTexture(context, R.drawable.bumpy_bricks_public_domain);
     }
     public Cube(float [] vertexData, float [] normalData, float [] textureData, int program, Context context){

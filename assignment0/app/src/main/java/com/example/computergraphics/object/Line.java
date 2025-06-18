@@ -1,12 +1,13 @@
 package com.example.computergraphics.object;
 
 import android.content.Context;
-import android.opengl.GLES20;
+import android.opengl.GLES30;
 import android.opengl.Matrix;
 import android.util.Log;
 
 import com.example.computergraphics.utils.MaterialFileHandle;
 import com.example.computergraphics.utils.MatrixUtils;
+import com.example.computergraphics.utils.Utility;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +39,7 @@ public class Line extends GraphicObject {
             new float[] {start[0], start[1], start[2], end[0], end[1], end[2]},
             null,
             null,
-            GLES20.glCreateProgram(),
+            GLES30.glCreateProgram(),
             context
         );
         source = start;
@@ -78,53 +79,53 @@ public class Line extends GraphicObject {
     }
     public void draw(float [] vMatrix, float[] pMatrix, float[] worldRotationMatrix, float [] eye) {
         // Add program to OpenGL ES environment
-        GLES20.glUseProgram(program);
+        GLES30.glUseProgram(program);
 
         int[] linkStatus = new int[1];
-        GLES20.glGetProgramiv(program, GLES20.GL_LINK_STATUS, linkStatus, 0);
+        GLES30.glGetProgramiv(program, GLES30.GL_LINK_STATUS, linkStatus, 0);
         if (linkStatus[0] == 0) {
             // Linking failed
             Log.e("Shader", "Program linking failed.");
-            Log.e("Shader", GLES20.glGetProgramInfoLog(program));
+            Log.e("Shader", GLES30.glGetProgramInfoLog(program));
         }
 
-        int mvpMatrixHandle = GLES20.glGetUniformLocation(program, "uMVPMatrix");
-        int mvMatrixHandle = GLES20.glGetUniformLocation(program, "uMVMatrix");
-        int colorHandle = GLES20.glGetUniformLocation(program, "uColor");
-        int viewPositionHandle = GLES20.glGetUniformLocation(program, "uViewPosition");
+        int mvpMatrixHandle = GLES30.glGetUniformLocation(program, "uMVPMatrix");
+        int mvMatrixHandle = GLES30.glGetUniformLocation(program, "uMVMatrix");
+        int colorHandle = GLES30.glGetUniformLocation(program, "uColor");
+        int viewPositionHandle = GLES30.glGetUniformLocation(program, "uViewPosition");
 
-        int positionHandle = GLES20.glGetAttribLocation(program, "aPosition");
+        int positionHandle = GLES30.glGetAttribLocation(program, "aPosition");
 
         // Enable a handle to the triangle vertices
-        GLES20.glEnableVertexAttribArray(positionHandle);
+        GLES30.glEnableVertexAttribArray(positionHandle);
 
         // Prepare the triangle coordinate data
-        GLES20.glVertexAttribPointer(positionHandle, COORDS_PER_VERTEX,
-                GLES20.GL_FLOAT, false,
+        GLES30.glVertexAttribPointer(positionHandle, COORDS_PER_VERTEX,
+                GLES30.GL_FLOAT, false,
                 vertexStride, vertexBuffer);
 
         // Set color for drawing the triangle
-        GLES20.glUniform4fv(colorHandle, 1, color, 0);
+        GLES30.glUniform4fv(colorHandle, 1, color, 0);
 
-        modelMatrix = this.getModelMatrix();
+        modelMatrix = Utility.getModelMatrix(translation, rotation, scale);
         Matrix.multiplyMM(modelMatrix, 0, worldRotationMatrix, 0, modelMatrix, 0);
         float [] vpMatrix = new float[16];
         Matrix.multiplyMM(vpMatrix, 0, pMatrix, 0, vMatrix, 0);
         float [] mvpMatrix = new float[16];
         Matrix.multiplyMM(mvpMatrix, 0, vpMatrix, 0, modelMatrix, 0);
         // Pass the projection and view transformation to the shader
-        GLES20.glUniformMatrix4fv(mvpMatrixHandle, 1, false, mvpMatrix, 0);
+        GLES30.glUniformMatrix4fv(mvpMatrixHandle, 1, false, mvpMatrix, 0);
 
         float [] mvMatrix = new float[16];
         Matrix.multiplyMM(mvMatrix, 0, vMatrix, 0, modelMatrix, 0);
-        GLES20.glUniformMatrix4fv(mvMatrixHandle, 1, false, mvMatrix, 0);
+        GLES30.glUniformMatrix4fv(mvMatrixHandle, 1, false, mvMatrix, 0);
 
-        GLES20.glUniform3fv(viewPositionHandle, 1, eye, 0);
+        GLES30.glUniform3fv(viewPositionHandle, 1, eye, 0);
 
-        GLES20.glDrawArrays(GLES20.GL_LINES, 0, vertexData.length / COORDS_PER_VERTEX);
+        GLES30.glDrawArrays(GLES30.GL_LINES, 0, vertexData.length / COORDS_PER_VERTEX);
 
         // Disable vertex array
-        GLES20.glDisableVertexAttribArray(positionHandle);
+        GLES30.glDisableVertexAttribArray(positionHandle);
     }
 }
 

@@ -4,7 +4,7 @@ import android.content.Context;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.opengl.GLES20;
+import android.opengl.GLES30;
 import android.opengl.GLUtils;
 import android.opengl.Matrix;
 import android.util.Log;
@@ -71,11 +71,11 @@ public class GraphicObject {
     }
     public GraphicObject(Context context) {
         this(defaultVertexData, defaultNormalData, null,
-                GLES20.glCreateProgram(), context);
+                GLES30.glCreateProgram(), context);
     }
     public GraphicObject(InputStream objInputStream, Context context) {
         this.context = context;
-        this.program = GLES20.glCreateProgram();
+        this.program = GLES30.glCreateProgram();
         BufferedReader reader = new BufferedReader(new InputStreamReader(objInputStream));
         List<Float> vertices = new ArrayList<>();
         List<Float> textures = new ArrayList<>();
@@ -215,31 +215,18 @@ public class GraphicObject {
     protected void initProgram() {
         String vertexShaderCode = Utility.readRawTextFile(context, R.raw.vertex_shader);
         String fragmentShaderCode = Utility.readRawTextFile(context, R.raw.fragment_shader);
-        int vertexShader = MyGLRenderer.loadShader(GLES20.GL_VERTEX_SHADER,
+        int vertexShader = MyGLRenderer.loadShader(GLES30.GL_VERTEX_SHADER,
                 vertexShaderCode);
-        int fragmentShader = MyGLRenderer.loadShader(GLES20.GL_FRAGMENT_SHADER,
+        int fragmentShader = MyGLRenderer.loadShader(GLES30.GL_FRAGMENT_SHADER,
                 fragmentShaderCode);
         // create empty OpenGL ES Program
-        GLES20.glAttachShader(this.program, vertexShader);
-        GLES20.glAttachShader(this.program, fragmentShader);
-        GLES20.glLinkProgram(this.program);
-    }
-    public float[] getModelMatrix(){
-        // Reset the model matrix to identity
-        Matrix.setIdentityM(modelMatrix, 0);
-        // Apply translation
-        Matrix.translateM(modelMatrix, 0, translation[0], translation[1], translation[2]);
-        // Apply rotation
-        Matrix.rotateM(modelMatrix, 0, rotation[0], 1.0f, 0.0f, 0.0f);
-        Matrix.rotateM(modelMatrix, 0, rotation[1], 0.0f, 1.0f, 0.0f);
-        Matrix.rotateM(modelMatrix, 0, rotation[2], 0.0f, 0.0f, 1.0f);
-        // Apply scaling
-        Matrix.scaleM(modelMatrix, 0, scale[0], scale[1], scale[2]);
-        return modelMatrix;
+        GLES30.glAttachShader(this.program, vertexShader);
+        GLES30.glAttachShader(this.program, fragmentShader);
+        GLES30.glLinkProgram(this.program);
     }
     public static int loadTexture(final Context context, final int resourceId) {
         final int[] textureHandle = new int[1];
-        GLES20.glGenTextures(1, textureHandle, 0);
+        GLES30.glGenTextures(1, textureHandle, 0);
         if (textureHandle[0] != 0) {
             final BitmapFactory.Options options = new BitmapFactory.Options();
             options.inScaled = false; // No pre-scaling
@@ -249,12 +236,12 @@ public class GraphicObject {
                 throw new RuntimeException("Error loading texture.");
             }
             // Bind to the texture in OpenGL
-            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureHandle[0]);
+            GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, textureHandle[0]);
             // Set filtering
-            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
-            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+            GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MIN_FILTER, GLES30.GL_LINEAR);
+            GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MAG_FILTER, GLES30.GL_LINEAR);
             // Load the bitmap into the bound texture.
-            GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0);
+            GLUtils.texImage2D(GLES30.GL_TEXTURE_2D, 0, bitmap, 0);
             // Recycle the bitmap, since its data has been loaded into OpenGL.
             bitmap.recycle();
         }
@@ -316,44 +303,44 @@ public class GraphicObject {
     }
     public void draw(float [] vMatrix, float[] pMatrix, float[] worldRotationMatrix, float [] eye) {
         // Add program to OpenGL ES environment
-        GLES20.glUseProgram(program);
+        GLES30.glUseProgram(program);
 
         int[] linkStatus = new int[1];
-        GLES20.glGetProgramiv(program, GLES20.GL_LINK_STATUS, linkStatus, 0);
+        GLES30.glGetProgramiv(program, GLES30.GL_LINK_STATUS, linkStatus, 0);
         if (linkStatus[0] == 0) {
             // Linking failed
             Log.e("Shader", "Program linking failed.");
-            Log.e("Shader", GLES20.glGetProgramInfoLog(program));
+            Log.e("Shader", GLES30.glGetProgramInfoLog(program));
         }
 
-        int mvpMatrixHandle = GLES20.glGetUniformLocation(program, "uMVPMatrix");
-        int mvMatrixHandle = GLES20.glGetUniformLocation(program, "uMVMatrix");
-        int useTexture = GLES20.glGetUniformLocation(program, "uUseTexture");
-        int useNormal = GLES20.glGetUniformLocation(program, "uUseNormal");
-        int textureUniformHandle = GLES20.glGetUniformLocation(program, "uTexture");
-        int colorHandle = GLES20.glGetUniformLocation(program, "uColor");
-        int lightPositionHandle = GLES20.glGetUniformLocation(program, "uLightPosition");
-        int viewPositionHandle = GLES20.glGetUniformLocation(program, "uViewPosition");
-        int ambientHandle = GLES20.glGetUniformLocation(program, "Ka");
-        int diffuseHandle = GLES20.glGetUniformLocation(program, "Kd");
-        int specularHandle = GLES20.glGetUniformLocation(program, "Ks");
+        int mvpMatrixHandle = GLES30.glGetUniformLocation(program, "uMVPMatrix");
+        int mvMatrixHandle = GLES30.glGetUniformLocation(program, "uMVMatrix");
+        int useTexture = GLES30.glGetUniformLocation(program, "uUseTexture");
+        int useNormal = GLES30.glGetUniformLocation(program, "uUseNormal");
+        int textureUniformHandle = GLES30.glGetUniformLocation(program, "uTexture");
+        int colorHandle = GLES30.glGetUniformLocation(program, "uColor");
+        int lightPositionHandle = GLES30.glGetUniformLocation(program, "uLightPosition");
+        int viewPositionHandle = GLES30.glGetUniformLocation(program, "uViewPosition");
+        int ambientHandle = GLES30.glGetUniformLocation(program, "Ka");
+        int diffuseHandle = GLES30.glGetUniformLocation(program, "Kd");
+        int specularHandle = GLES30.glGetUniformLocation(program, "Ks");
 
-        int positionHandle = GLES20.glGetAttribLocation(program, "aPosition");
-        int normalHandle = GLES20.glGetAttribLocation(program, "aNormal");
-        int textureCoordinateHandle = GLES20.glGetAttribLocation(program, "aTextureCoordinate");
+        int positionHandle = GLES30.glGetAttribLocation(program, "aPosition");
+        int normalHandle = GLES30.glGetAttribLocation(program, "aNormal");
+        int textureCoordinateHandle = GLES30.glGetAttribLocation(program, "aTextureCoordinate");
 
         // Enable a handle to the triangle vertices
-        GLES20.glEnableVertexAttribArray(positionHandle);
+        GLES30.glEnableVertexAttribArray(positionHandle);
 
         // Prepare the triangle coordinate data
-        GLES20.glVertexAttribPointer(positionHandle, COORDS_PER_VERTEX,
-                GLES20.GL_FLOAT, false,
+        GLES30.glVertexAttribPointer(positionHandle, COORDS_PER_VERTEX,
+                GLES30.GL_FLOAT, false,
                 vertexStride, vertexBuffer);
 
         // Set color for drawing the triangle
-        GLES20.glUniform4fv(colorHandle, 1, color, 0);
+        GLES30.glUniform4fv(colorHandle, 1, color, 0);
 
-        modelMatrix = this.getModelMatrix();
+        modelMatrix = Utility.getModelMatrix(translation, rotation, scale);
         Matrix.multiplyMM(modelMatrix, 0, worldRotationMatrix, 0, modelMatrix, 0);
         float [] vpMatrix = new float[16];
         Matrix.multiplyMM(vpMatrix, 0, pMatrix, 0, vMatrix, 0);
@@ -361,51 +348,51 @@ public class GraphicObject {
         Matrix.multiplyMM(mvpMatrix, 0, vpMatrix, 0, modelMatrix, 0);
 
         // Pass the projection and view transformation to the shader
-        GLES20.glUniformMatrix4fv(mvpMatrixHandle, 1, false, mvpMatrix, 0);
+        GLES30.glUniformMatrix4fv(mvpMatrixHandle, 1, false, mvpMatrix, 0);
 
         float [] mvMatrix = new float[16];
         Matrix.multiplyMM(mvMatrix, 0, vMatrix, 0, modelMatrix, 0);
-        GLES20.glUniformMatrix4fv(mvMatrixHandle, 1, false, mvMatrix, 0);
+        GLES30.glUniformMatrix4fv(mvMatrixHandle, 1, false, mvMatrix, 0);
 
         int textureHandle = mtl.textureHandle;
-        GLES20.glUniform1i(useTexture, 0);
+        GLES30.glUniform1i(useTexture, 0);
         if (this.textureCoordinateBuffer != null && textureCoordinateHandle >= 0) {
-            GLES20.glEnableVertexAttribArray(textureCoordinateHandle);
-            GLES20.glUniform1i(useTexture, 1);
-            GLES20.glVertexAttribPointer(
+            GLES30.glEnableVertexAttribArray(textureCoordinateHandle);
+            GLES30.glUniform1i(useTexture, 1);
+            GLES30.glVertexAttribPointer(
                 textureCoordinateHandle,
                 textureCoordinateDataSize,
-                GLES20.GL_FLOAT,
+                GLES30.GL_FLOAT,
                 false,
                 0,
                 textureCoordinateBuffer
             );
-            GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureHandle);
-            GLES20.glUniform1i(textureUniformHandle, 0);
+            GLES30.glActiveTexture(GLES30.GL_TEXTURE0);
+            GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, textureHandle);
+            GLES30.glUniform1i(textureUniformHandle, 0);
         }
 
         if (this.lightPositionData != null && lightPositionHandle >= 0){
-            GLES20.glUniform3fv(lightPositionHandle, 1, this.lightPositionData, 0);
+            GLES30.glUniform3fv(lightPositionHandle, 1, this.lightPositionData, 0);
         }
 
-        GLES20.glUniform3fv(viewPositionHandle, 1, eye, 0);
+        GLES30.glUniform3fv(viewPositionHandle, 1, eye, 0);
 
-        GLES20.glUniform3fv(ambientHandle, 1, mtl.Ka, 0);
-        GLES20.glUniform3fv(diffuseHandle, 1, mtl.Kd, 0);
-        GLES20.glUniform3fv(specularHandle, 1, mtl.Ks, 0);
+        GLES30.glUniform3fv(ambientHandle, 1, mtl.Ka, 0);
+        GLES30.glUniform3fv(diffuseHandle, 1, mtl.Kd, 0);
+        GLES30.glUniform3fv(specularHandle, 1, mtl.Ks, 0);
 
         if (this.normalBuffer != null && normalHandle >= 0){
-            GLES20.glUniform1i(useNormal, 1);
-            GLES20.glEnableVertexAttribArray(normalHandle);
-            GLES20.glVertexAttribPointer(normalHandle, COORDS_PER_NORMAL,
-                GLES20.GL_FLOAT, false,
+            GLES30.glUniform1i(useNormal, 1);
+            GLES30.glEnableVertexAttribArray(normalHandle);
+            GLES30.glVertexAttribPointer(normalHandle, COORDS_PER_NORMAL,
+                GLES30.GL_FLOAT, false,
                 normalStride, normalBuffer);
         }
-        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, vertexData.length / COORDS_PER_VERTEX);
+        GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, vertexData.length / COORDS_PER_VERTEX);
 
         // Disable vertex array
-        GLES20.glDisableVertexAttribArray(positionHandle);
+        GLES30.glDisableVertexAttribArray(positionHandle);
     }
     public List<float[][]> getIntersectionsWithLine(Line line){
         List<float[][]> intersections = new ArrayList<>();
@@ -470,7 +457,7 @@ public class GraphicObject {
         this.translation = translation;
     }
     public float [] getWorldVertices(){
-        float [] modelMatrix = getModelMatrix();
+        float [] modelMatrix = Utility.getModelMatrix(translation, rotation, scale);
         float [] worldVertices = new float[vertexData.length];
         for(int i=0; i<vertexData.length; i+=3){
             float [] vertex = new float[] {vertexData[i], vertexData[i+1], vertexData[i+2], 1};

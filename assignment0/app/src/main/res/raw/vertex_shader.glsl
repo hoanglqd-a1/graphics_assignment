@@ -1,17 +1,18 @@
+#version 300 es
 uniform vec4 uColor;
 uniform mat4 uMVPMatrix;
 uniform mat4 uMVMatrix;
 uniform bool uUseTexture;
 uniform bool uUseNormal;
 
-attribute vec2 aTextureCoordinate;
-attribute vec4 aPosition;
-attribute vec3 aNormal;
+in vec2 aTextureCoordinate;
+in vec4 aPosition;
+in vec3 aNormal;
 
-varying vec3 vPosition;
-varying vec4 vColor;
-varying vec3 vNormal;
-varying vec2 vTextureCoordinate;
+out vec3 vPosition;
+out vec4 vColor;
+out vec3 vNormal;
+out vec2 vTextureCoordinate;
 
 void main() {
     vPosition = vec3(uMVMatrix * aPosition);

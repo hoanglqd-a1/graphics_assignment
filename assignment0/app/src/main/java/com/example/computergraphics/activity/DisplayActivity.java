@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 
-import com.example.computergraphics.object.*;
 import com.example.computergraphics.MyGLSurfaceView;
 
 public class DisplayActivity extends Activity {

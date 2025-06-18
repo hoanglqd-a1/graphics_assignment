@@ -2,10 +2,11 @@ package com.example.computergraphics;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
-import android.opengl.GLES20;
+import android.opengl.GLES30;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
 import java.io.*;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -14,6 +15,8 @@ import android.content.Context;
 import android.util.Log;
 
 import com.example.computergraphics.object.*;
+import com.example.computergraphics.utils.MatrixUtils;
+import com.example.computergraphics.utils.Utility;
 
 public class MyGLRenderer implements GLSurfaceView.Renderer {
     private Context context;
@@ -25,6 +28,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
     private Line line;
     private Cube [] cubes;
     private Line [] lines;
+    private GroupedGraphicObjects groupedObjects;
     private float [] vpMatrix = new float[16];
     private float [] projectionMatrix = new float[16];
     private float [] viewMatrix = new float [16];
@@ -38,11 +42,11 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         this.userInputLineDirection = direction;
     }
     public void onSurfaceCreated(GL10 unused, EGLConfig config) {
-        GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
-		GLES20.glEnable(GLES20.GL_CULL_FACE);
-        GLES20.glEnable(GLES20.GL_DEPTH_TEST);
-        GLES20.glLineWidth(10.0f);
+        GLES30.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT | GLES30.GL_DEPTH_BUFFER_BIT);
+		GLES30.glEnable(GLES30.GL_CULL_FACE);
+        GLES30.glEnable(GLES30.GL_DEPTH_TEST);
+        GLES30.glLineWidth(10.0f);
 
         object = new GraphicObject(this.context);
         cube = new Cube(context);
@@ -61,9 +65,9 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
             cubes[i] = new Cube(context);
             cubes[i].setTranslation(
                 new float[] {
-                    4 * random.nextFloat() - 2f,
-                    4 * random.nextFloat() - 2f,
-                    4 * random.nextFloat() - 2f,
+                    2 * random.nextFloat() - 1f,
+                    2 * random.nextFloat() - 1f,
+                    2 * random.nextFloat() - 1f,
                 }
             );
         }
@@ -80,6 +84,21 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
             };
             lines[i] = new Line(source, direction, -1, context);
         }
+        int copies = 100;
+        float[] instancedModelMatrices = new float[copies * 16];
+        for(int i=0; i<copies; i++){
+            float[] transalation = MatrixUtils.add(
+                MatrixUtils.mul(
+                    MatrixUtils.generateRandomVector(3),
+                    2
+                ), new float[] {-1f, -1f, -1f}
+            );
+            float[] scale = new float[] {0.5f, 0.5f, 0.5f};
+            float[] rotation = MatrixUtils.generateRandomVector(3);
+            float[] modelMatrix = Utility.getModelMatrix(transalation, rotation, scale);
+            System.arraycopy(modelMatrix, 0, instancedModelMatrices, i * 16, 16);
+        }
+        groupedObjects = new GroupedGraphicObjects(context, copies, instancedModelMatrices);
     }
     private long lastTime = System.nanoTime();
     private int frames;
@@ -93,7 +112,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         }
 
         // Redraw background color
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
+        GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT | GLES30.GL_DEPTH_BUFFER_BIT);
         Matrix.setLookAtM(viewMatrix, 0, eye[0], eye[1], eye[2], 0f, 0f, 0f, 0f, 1.0f, 0.0f);
         Matrix.multiplyMM(vpMatrix, 0, projectionMatrix, 0, viewMatrix, 0);
         Matrix.setRotateM(rotationMatrix, 0, mAngle, 0f, 1.0f, 0.0f);
@@ -113,30 +132,31 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 //                l.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
 //            }
 //        }
-        for(Cube c : cubes){
-            c.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
-        }
-        for(Line l : lines){
-            l.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
-        }
-        for(int i=0; i<cubes.length; i++){
-            for(int j=0; j<lines.length; j++){
-                List<float[][]> intersectionList = cubes[i].getIntersectionsWithLine(lines[j]);
-                for(float[][] intersections : intersectionList){
-                    if(intersections.length == 1){
-                        Point p = new Point(intersections[0], context);
-                        p.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
-                    }
-                    else if(intersections.length == 2){
-                        Line l = new Line(intersections[0], intersections[1], context);
-                        l.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
-                    }
-                }
-            }
-        }
+//        for(Cube c : cubes){
+//            c.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//        }
+//        for(Line l : lines){
+//            l.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//        }
+//        for(int i=0; i<cubes.length; i++){
+//            for(int j=0; j<lines.length; j++){
+//                List<float[][]> intersectionList = cubes[i].getIntersectionsWithLine(lines[j]);
+//                for(float[][] intersections : intersectionList){
+//                    if(intersections.length == 1){
+//                        Point p = new Point(intersections[0], context);
+//                        p.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//                    }
+//                    else if(intersections.length == 2){
+//                        Line l = new Line(intersections[0], intersections[1], context);
+//                        l.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//                    }
+//                }
+//            }
+//        }
+        groupedObjects.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
     }
     public void onSurfaceChanged(GL10 unused, int width, int height) {
-        GLES20.glViewport(0, 0, width, height);
+        GLES30.glViewport(0, 0, width, height);
         float ratio = (float) width / height;
 
         // this projection matrix is applied to object coordinates
@@ -144,10 +164,10 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         Matrix.frustumM(projectionMatrix, 0, -ratio, ratio, -1, 1, 1, 10);
     }
     public static int loadShader(int type, String shaderCode){
-        int shader = GLES20.glCreateShader(type);
+        int shader = GLES30.glCreateShader(type);
         // add the source code to the shader and compile it
-        GLES20.glShaderSource(shader, shaderCode);
-        GLES20.glCompileShader(shader);
+        GLES30.glShaderSource(shader, shaderCode);
+        GLES30.glCompileShader(shader);
 
         return shader;
     }

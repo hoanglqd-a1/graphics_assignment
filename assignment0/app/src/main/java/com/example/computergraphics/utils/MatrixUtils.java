@@ -1,5 +1,7 @@
 package com.example.computergraphics.utils;
 
+import java.util.Random;
+
 public class MatrixUtils {
     public static float MM(float [] v1, float [] v2){
         float ans = 0.0f;
@@ -48,5 +50,13 @@ public class MatrixUtils {
         float SACP = 0.5f * MatrixUtils.norm(MatrixUtils.crossProduct(AC, AP));
         float SBCP = SABC - SABP - SACP;
         return new float [] {SBCP / SABC, SACP / SABC, SABP / SABC};
+    }
+    public static float[] generateRandomVector(int length){
+        float[] vector = new float[length];
+        Random random = new Random();
+        for(int i=0; i<length; i++){
+            vector[i] = random.nextFloat();
+        }
+        return vector;
     }
 }
