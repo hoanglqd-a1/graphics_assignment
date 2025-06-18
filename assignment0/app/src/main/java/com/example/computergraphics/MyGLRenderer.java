@@ -11,6 +11,8 @@ import java.util.Random;
 
 import android.content.res.AssetManager;
 import android.content.Context;
+import android.util.Log;
+
 import com.example.computergraphics.object.*;
 
 public class MyGLRenderer implements GLSurfaceView.Renderer {
@@ -21,12 +23,14 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
     private Cube cube;
     private GraphicObject model;
     private Line line;
+    private Cube [] cubes;
+    private Line [] lines;
     private float [] vpMatrix = new float[16];
     private float [] projectionMatrix = new float[16];
     private float [] viewMatrix = new float [16];
     private float [] rotationMatrix = new float[16];
     private float [] lightModelMatrix = new float[16];
-    public float [] eye = { 0.0f, 2.0f, 5.0f };
+    public float [] eye = { 0.0f, 2.0f, 3.0f };
     MyGLRenderer(float [] source, float [] direction, Context context) {
         // Constructor
         this.context = context;
@@ -50,8 +54,44 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        Random random = new Random();
+        cubes = new Cube[10];
+        lines = new Line[100];
+        for(int i=0; i<cubes.length; i++){
+            cubes[i] = new Cube(context);
+            cubes[i].setTranslation(
+                new float[] {
+                    4 * random.nextFloat() - 2f,
+                    4 * random.nextFloat() - 2f,
+                    4 * random.nextFloat() - 2f,
+                }
+            );
+        }
+        for (int i=0; i<lines.length; i++){
+            float[] source = new float[] {
+                2 * random.nextFloat() - 1f,
+                2 * random.nextFloat() - 1f,
+                2 * random.nextFloat() - 1f,
+            };
+            float[] direction = new float[] {
+                2 * random.nextFloat() - 1f,
+                2 * random.nextFloat() - 1f,
+                2 * random.nextFloat() - 1f,
+            };
+            lines[i] = new Line(source, direction, -1, context);
+        }
     }
+    private long lastTime = System.nanoTime();
+    private int frames;
     public void onDrawFrame(GL10 unused) {
+        frames ++;
+        long currentTime = System.nanoTime();
+        if (currentTime - lastTime > 1_000_000_000L){
+            lastTime = currentTime;
+            Log.d("FPS", "FPS " + frames);
+            frames = 0;
+        }
+
         // Redraw background color
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
         Matrix.setLookAtM(viewMatrix, 0, eye[0], eye[1], eye[2], 0f, 0f, 0f, 0f, 1.0f, 0.0f);
@@ -73,37 +113,27 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 //                l.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
 //            }
 //        }
-//        Random random = new Random();
-//        Cube [] cubes = new Cube[10];
-//        Line [] lines = new Line[10];
-//        for(int i=0; i<cubes.length; i++){
-//            cubes[i] = new Cube(context);
-////            cubes[i].setTranslation(
-////                new float[] {random.nextFloat(), random.nextFloat(), random.nextFloat()}
-////            );
-//            cubes[i].draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
-//        }
-//        for (int i=0; i<lines.length; i++){
-//            float[] source = new float[] {random.nextFloat(), random.nextFloat(), random.nextFloat()};
-//            float[] direction = new float[] {random.nextFloat(), random.nextFloat(), random.nextFloat()};
-//            lines[i] = new Line(source, direction, -1, context);
-//            lines[i].draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
-//        }
-//        for(int i=0; i<cubes.length; i++){
-//            for(int j=0; j<lines.length; j++){
-//                List<float[][]> intersectionList = cubes[i].getIntersectionsWithLine(lines[i]);
-//                for(float[][] intersections : intersectionList){
-//                    if(intersections.length == 1){
-//                        Point p = new Point(intersections[0], context);
-//                        p.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
-//                    }
-//                    else if(intersections.length == 2){
-//                        Line l = new Line(intersections[0], intersections[1], context);
-//                        l.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
-//                    }
-//                }
-//            }
-//        }
+        for(Cube c : cubes){
+            c.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+        }
+        for(Line l : lines){
+            l.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+        }
+        for(int i=0; i<cubes.length; i++){
+            for(int j=0; j<lines.length; j++){
+                List<float[][]> intersectionList = cubes[i].getIntersectionsWithLine(lines[j]);
+                for(float[][] intersections : intersectionList){
+                    if(intersections.length == 1){
+                        Point p = new Point(intersections[0], context);
+                        p.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+                    }
+                    else if(intersections.length == 2){
+                        Line l = new Line(intersections[0], intersections[1], context);
+                        l.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+                    }
+                }
+            }
+        }
     }
     public void onSurfaceChanged(GL10 unused, int width, int height) {
         GLES20.glViewport(0, 0, width, height);

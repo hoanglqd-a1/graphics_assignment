@@ -409,10 +409,11 @@ public class GraphicObject {
     }
     public List<float[][]> getIntersectionsWithLine(Line line){
         List<float[][]> intersections = new ArrayList<>();
-        for (int i=0; i<vertexData.length; i += 3 * COORDS_PER_VERTEX){
-            float [] v0 = {vertexData[i  ], vertexData[i+1], vertexData[i+2]};
-            float [] v1 = {vertexData[i+3], vertexData[i+4], vertexData[i+5]};
-            float [] v2 = {vertexData[i+6], vertexData[i+7], vertexData[i+8]};
+        float [] worldVertices = getWorldVertices();
+        for (int i=0; i<worldVertices.length; i += 3 * COORDS_PER_VERTEX){
+            float [] v0 = {worldVertices[i  ], worldVertices[i+1], worldVertices[i+2]};
+            float [] v1 = {worldVertices[i+3], worldVertices[i+4], worldVertices[i+5]};
+            float [] v2 = {worldVertices[i+6], worldVertices[i+7], worldVertices[i+8]};
             float [] v0v2temp = MatrixUtils.sub(v2, v0);
             float [] v0v1temp = MatrixUtils.sub(v1, v0);
             float [] normal = MatrixUtils.normalize(MatrixUtils.crossProduct(v0v1temp, v0v2temp));
@@ -443,7 +444,6 @@ public class GraphicObject {
                     points.get(0), points.get(1)
                 });
             }
-
             else {
                 float t = - (MatrixUtils.MM(normal, line.source) + D) / NR;
                 if (t < 0){
@@ -468,5 +468,15 @@ public class GraphicObject {
     }
     public void setTranslation(float [] translation){
         this.translation = translation;
+    }
+    public float [] getWorldVertices(){
+        float [] modelMatrix = getModelMatrix();
+        float [] worldVertices = new float[vertexData.length];
+        for(int i=0; i<vertexData.length; i+=3){
+            float [] vertex = new float[] {vertexData[i], vertexData[i+1], vertexData[i+2], 1};
+            Matrix.multiplyMV(vertex, 0, modelMatrix, 0, vertex, 0);
+            System.arraycopy(vertex, 0, worldVertices, i, 3);
+        }
+        return worldVertices;
     }
 }
