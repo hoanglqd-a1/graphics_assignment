@@ -8,6 +8,9 @@ import android.util.Log;
 import com.example.computergraphics.utils.MaterialFileHandle;
 import com.example.computergraphics.utils.MatrixUtils;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class Line extends GraphicObject {
     static float []  defaultSource = {
             -2.0f, 0.0f, -2.0f
@@ -21,10 +24,10 @@ public class Line extends GraphicObject {
     public float [] direction;
     public float length;
     public float [] color = {0f, 0f, 1f, 1f};
-    public Line(float [] Source, float [] Direction, float Length, Context context){
-        this(Source,
-            MatrixUtils.add(Source,
-                MatrixUtils.mul(Direction, Length > 0f ? Length : defaultMaxLength)),
+    public Line(float [] source, float [] direction, float length, Context context){
+        this(source,
+            MatrixUtils.add(source,
+                MatrixUtils.mul(direction, length > 0f ? length : defaultMaxLength)),
             context);
     }
     public Line(Context context){
@@ -43,7 +46,37 @@ public class Line extends GraphicObject {
         length = MatrixUtils.norm(ray);
         direction = new float[] {ray[0] / length, ray[1] / length, ray[2] / length};
     }
-    public void draw(float [] vMatrix, float[] pMatrix, float[] rotationMatrix, float [] eye) {
+    public float[] getIntersectionWithLine(Line line){
+        float [] s1 = source;
+        float [] s2 = line.source;
+        float [] d1 = direction;
+        float [] d2 = line.direction;
+        float [] r = MatrixUtils.sub(s1, s2);
+        float a = MatrixUtils.MM(d1, d1);
+        float b = MatrixUtils.MM(d1, d2);
+        float c = MatrixUtils.MM(d2, d2);
+        float d = MatrixUtils.MM(d1, r);
+        float e = MatrixUtils.MM(d2, r);
+        float denom = a*c - b*b;
+        if (Math.abs(denom) < 1e-6){
+            return null;
+        }
+        float t = (b*e - c*d)/denom;
+        float s = (a*e - b*d)/denom;
+
+        float [] p1 = new float [] {
+                s1[0] + t*d1[0], s1[1] + t*d1[1], s1[2] + t*d1[2],
+        };
+        float [] p2 = new float [] {
+                s2[0] + s*d2[0], s2[1] + s*d2[1], s2[2] + s*d2[2],
+        };
+        float [] dis = MatrixUtils.sub(p1, p2);
+        if (dis[0] * dis[0] + dis[1] * dis[1] + dis[2] * dis[2] > 1e-6){
+            return null;
+        }
+        return p1;
+    }
+    public void draw(float [] vMatrix, float[] pMatrix, float[] worldRotationMatrix, float [] eye) {
         // Add program to OpenGL ES environment
         GLES20.glUseProgram(program);
 
@@ -74,7 +107,7 @@ public class Line extends GraphicObject {
         GLES20.glUniform4fv(colorHandle, 1, color, 0);
 
         modelMatrix = this.getModelMatrix();
-        Matrix.multiplyMM(modelMatrix, 0, rotationMatrix, 0, modelMatrix, 0);
+        Matrix.multiplyMM(modelMatrix, 0, worldRotationMatrix, 0, modelMatrix, 0);
         float [] vpMatrix = new float[16];
         Matrix.multiplyMM(vpMatrix, 0, pMatrix, 0, vMatrix, 0);
         float [] mvpMatrix = new float[16];

@@ -12,6 +12,7 @@ import android.util.Log;
 import com.example.computergraphics.R;
 import com.example.computergraphics.utils.MaterialFileHandle;
 import com.example.computergraphics.MyGLRenderer;
+import com.example.computergraphics.utils.MatrixUtils;
 import com.example.computergraphics.utils.Utility;
 
 import java.io.BufferedReader;
@@ -42,7 +43,7 @@ public class GraphicObject {
     };
     protected float vertexData [];
     protected float normalData [];
-    protected float lightPositionData [] ;
+    protected float lightPositionData [] = {0.0f, 0.0f, 0.75f, 1.0f};
     protected float textureCoordinateData [];
     protected FloatBuffer vertexBuffer;
     protected FloatBuffer normalBuffer;
@@ -54,8 +55,6 @@ public class GraphicObject {
     protected float modelMatrix [] = new float[16];
 
     protected MaterialFileHandle mtl;
-    protected int textureHandle = -1; // Texture handle, -1 means no texture
-
     protected final int textureCoordinateDataSize = 2;
     protected final int vertexStride = COORDS_PER_VERTEX * 4; // 4 bytes per vertex
     protected final int normalStride = COORDS_PER_VERTEX * 4;
@@ -315,7 +314,7 @@ public class GraphicObject {
         }
         return curr;
     }
-    public void draw(float [] vMatrix, float[] pMatrix, float[] rotationMatrix, float [] eye) {
+    public void draw(float [] vMatrix, float[] pMatrix, float[] worldRotationMatrix, float [] eye) {
         // Add program to OpenGL ES environment
         GLES20.glUseProgram(program);
 
@@ -355,7 +354,7 @@ public class GraphicObject {
         GLES20.glUniform4fv(colorHandle, 1, color, 0);
 
         modelMatrix = this.getModelMatrix();
-        Matrix.multiplyMM(modelMatrix, 0, rotationMatrix, 0, modelMatrix, 0);
+        Matrix.multiplyMM(modelMatrix, 0, worldRotationMatrix, 0, modelMatrix, 0);
         float [] vpMatrix = new float[16];
         Matrix.multiplyMM(vpMatrix, 0, pMatrix, 0, vMatrix, 0);
         float [] mvpMatrix = new float[16];
@@ -368,7 +367,7 @@ public class GraphicObject {
         Matrix.multiplyMM(mvMatrix, 0, vMatrix, 0, modelMatrix, 0);
         GLES20.glUniformMatrix4fv(mvMatrixHandle, 1, false, mvMatrix, 0);
 
-        this.textureHandle = mtl.textureHandle;
+        int textureHandle = mtl.textureHandle;
         GLES20.glUniform1i(useTexture, 0);
         if (this.textureCoordinateBuffer != null && textureCoordinateHandle >= 0) {
             GLES20.glEnableVertexAttribArray(textureCoordinateHandle);
@@ -407,5 +406,67 @@ public class GraphicObject {
 
         // Disable vertex array
         GLES20.glDisableVertexAttribArray(positionHandle);
+    }
+    public List<float[][]> getIntersectionsWithLine(Line line){
+        List<float[][]> intersections = new ArrayList<>();
+        for (int i=0; i<vertexData.length; i += 3 * COORDS_PER_VERTEX){
+            float [] v0 = {vertexData[i  ], vertexData[i+1], vertexData[i+2]};
+            float [] v1 = {vertexData[i+3], vertexData[i+4], vertexData[i+5]};
+            float [] v2 = {vertexData[i+6], vertexData[i+7], vertexData[i+8]};
+            float [] v0v2temp = MatrixUtils.sub(v2, v0);
+            float [] v0v1temp = MatrixUtils.sub(v1, v0);
+            float [] normal = MatrixUtils.normalize(MatrixUtils.crossProduct(v0v1temp, v0v2temp));
+            // Log.d("tag", "v "   + v0[0] + " " + v0[1] + " " + v0[2] + " "
+            //                     + v1[0] + " " + v1[1] + " " + v1[2] + " "
+            //                     + v2[0] + " " + v2[1] + " " + v2[2] + " ");
+            float D = - MatrixUtils.MM(normal, v0);
+            float NR = MatrixUtils.MM(normal, line.direction);
+            if (Math.abs(NR) < 1e-6){
+                Line l0 = new Line(v1, v2, context);
+                Line l1 = new Line(v2, v0, context);
+                Line l2 = new Line(v0, v1, context);
+                float [] p0 = line.getIntersectionWithLine(l0);
+                float [] p1 = line.getIntersectionWithLine(l1);
+                float [] p2 = line.getIntersectionWithLine(l2);
+                List<float[]> points = new ArrayList<>();
+                if (p0 != null && (p0[0] - v1[0]) * (p0[0] - v2[0]) - 1e-6 < 0){
+                    points.add(p0);
+                }
+                if (p1 != null && (p1[0] - v2[0]) * (p1[0] - v0[0]) - 1e-6 < 0){
+                    points.add(p1);
+                }
+                if (p2 != null && (p2[0] - v0[0]) * (p2[0] - v1[0]) - 1e-6 < 0){
+                    points.add(p2);
+                }
+                if (points.size() != 2) continue;
+                intersections.add(new float[][]{
+                    points.get(0), points.get(1)
+                });
+            }
+
+            else {
+                float t = - (MatrixUtils.MM(normal, line.source) + D) / NR;
+                if (t < 0){
+                    continue;
+                }
+                float [] p = MatrixUtils.add(line.source, MatrixUtils.mul(line.direction, t));
+                float [] v0v1 = MatrixUtils.sub(v1, v0);
+                float [] v1v2 = MatrixUtils.sub(v2, v1);
+                float [] v2v0 = MatrixUtils.sub(v0, v2);
+                float [] v0p = MatrixUtils.sub(p, v0);
+                float [] v1p = MatrixUtils.sub(p, v1);
+                float [] v2p = MatrixUtils.sub(p, v2);
+                float n1 = MatrixUtils.MM(normal, MatrixUtils.crossProduct(v0v1, v0p));
+                float n2 = MatrixUtils.MM(normal, MatrixUtils.crossProduct(v1v2, v1p));
+                float n3 = MatrixUtils.MM(normal, MatrixUtils.crossProduct(v2v0, v2p));
+                if (n1 * n2 >= 0 && n1 * n3 >= 0){
+                    intersections.add(new float[][] {p});
+                }
+            }
+        }
+        return intersections;
+    }
+    public void setTranslation(float [] translation){
+        this.translation = translation;
     }
 }

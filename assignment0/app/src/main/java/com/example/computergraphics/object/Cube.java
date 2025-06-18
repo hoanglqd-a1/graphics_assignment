@@ -3,6 +3,8 @@ package com.example.computergraphics.object;
 import android.content.Context;
 import android.opengl.GLES20;
 
+import com.example.computergraphics.R;
+
 public class Cube extends GraphicObject {
     static float defaultCubeCoords[] = {
             -0.5f,  0.5f, 0.5f,   // top left front
@@ -69,7 +71,6 @@ public class Cube extends GraphicObject {
             0.0f, -1.0f, 0.0f,
             0.0f, -1.0f, 0.0f,
     };
-    static float defaultLightPosition [] = {0.0f, 0.0f, 0.75f, 1.0f};
     static float defaultTextureCoordinateData[] = {
             // Front face
             0.0f, 0.0f,
@@ -120,16 +121,10 @@ public class Cube extends GraphicObject {
             1.0f, 0.0f,
     };
     public Cube(Context context) {
-//        super(context);
-//        this.vertexData = this.createData(defaultCubeCoords, defaultDrawOrder, COORDS_PER_VERTEX);
-//        this.textureCoordinateData = defaultTextureCoordinateData;
-//        this.normalData = defaultNormalData;
-//        this.lightPositionData = defaultLightPosition;
-//        this.textureHandle = this.loadTexture(context, R.drawable.bumpy_bricks_public_domain);
-//        this.createBuffer();
         this(createData(defaultCubeCoords, defaultDrawOrder, 3),
-            defaultNormalData, null,
+            defaultNormalData, defaultTextureCoordinateData,
             GLES20.glCreateProgram(), context);
+        mtl.textureHandle = loadTexture(context, R.drawable.bumpy_bricks_public_domain);
     }
     public Cube(float [] vertexData, float [] normalData, float [] textureData, int program, Context context){
         super(vertexData, normalData, textureData, program, context);

@@ -6,6 +6,8 @@ import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
 import java.io.*;
+import java.util.List;
+
 import android.content.res.AssetManager;
 import android.content.Context;
 import com.example.computergraphics.object.*;
@@ -34,7 +36,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
 		GLES20.glEnable(GLES20.GL_CULL_FACE);
-        // GLES20.glEnable(GLES20.GL_DEPTH_TEST);
+        GLES20.glEnable(GLES20.GL_DEPTH_TEST);
         GLES20.glLineWidth(10.0f);
 
         object = new GraphicObject(this.context);
@@ -50,16 +52,27 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
     }
     public void onDrawFrame(GL10 unused) {
         // Redraw background color
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
         Matrix.setLookAtM(viewMatrix, 0, eye[0], eye[1], eye[2], 0f, 0f, 0f, 0f, 1.0f, 0.0f);
         // Calculate the projection and view transformation
         Matrix.multiplyMM(vpMatrix, 0, projectionMatrix, 0, viewMatrix, 0);
         Matrix.setRotateM(rotationMatrix, 0, mAngle, 0f, 1.0f, 0.0f);
 
-//         shape.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
-//         cube.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//        object.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+        cube.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
 //        model.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
-        line.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//        line.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//        List<float[][]> intersectionsList = cube.getIntersectionsWithLine(line);
+//        for (float [][] intersections : intersectionsList){
+//            if(intersections.length == 1){
+//                Point p = new Point(intersections[0], context);
+//                p.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//            }
+//            else if(intersections.length == 2){
+//                Line l = new Line(intersections[0], intersections[1], context);
+//                l.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//            }
+//        }
     }
     public void onSurfaceChanged(GL10 unused, int width, int height) {
         GLES20.glViewport(0, 0, width, height);

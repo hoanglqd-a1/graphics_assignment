@@ -23,4 +23,5 @@ void main() {
     if (uUseTexture){
         vTextureCoordinate = aTextureCoordinate;
     }
+    gl_PointSize = 30.0;
 }
