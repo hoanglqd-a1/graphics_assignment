@@ -7,6 +7,7 @@ import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
 import java.io.*;
 import java.util.List;
+import java.util.Random;
 
 import android.content.res.AssetManager;
 import android.content.Context;
@@ -54,12 +55,11 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         // Redraw background color
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
         Matrix.setLookAtM(viewMatrix, 0, eye[0], eye[1], eye[2], 0f, 0f, 0f, 0f, 1.0f, 0.0f);
-        // Calculate the projection and view transformation
         Matrix.multiplyMM(vpMatrix, 0, projectionMatrix, 0, viewMatrix, 0);
         Matrix.setRotateM(rotationMatrix, 0, mAngle, 0f, 1.0f, 0.0f);
 
 //        object.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
-        cube.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//        cube.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
 //        model.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
 //        line.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
 //        List<float[][]> intersectionsList = cube.getIntersectionsWithLine(line);
@@ -71,6 +71,37 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 //            else if(intersections.length == 2){
 //                Line l = new Line(intersections[0], intersections[1], context);
 //                l.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//            }
+//        }
+//        Random random = new Random();
+//        Cube [] cubes = new Cube[10];
+//        Line [] lines = new Line[10];
+//        for(int i=0; i<cubes.length; i++){
+//            cubes[i] = new Cube(context);
+////            cubes[i].setTranslation(
+////                new float[] {random.nextFloat(), random.nextFloat(), random.nextFloat()}
+////            );
+//            cubes[i].draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//        }
+//        for (int i=0; i<lines.length; i++){
+//            float[] source = new float[] {random.nextFloat(), random.nextFloat(), random.nextFloat()};
+//            float[] direction = new float[] {random.nextFloat(), random.nextFloat(), random.nextFloat()};
+//            lines[i] = new Line(source, direction, -1, context);
+//            lines[i].draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//        }
+//        for(int i=0; i<cubes.length; i++){
+//            for(int j=0; j<lines.length; j++){
+//                List<float[][]> intersectionList = cubes[i].getIntersectionsWithLine(lines[i]);
+//                for(float[][] intersections : intersectionList){
+//                    if(intersections.length == 1){
+//                        Point p = new Point(intersections[0], context);
+//                        p.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//                    }
+//                    else if(intersections.length == 2){
+//                        Line l = new Line(intersections[0], intersections[1], context);
+//                        l.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//                    }
+//                }
 //            }
 //        }
     }

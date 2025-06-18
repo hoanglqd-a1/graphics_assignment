@@ -20,7 +20,7 @@ public class MyGLSurfaceView extends GLSurfaceView {
         renderer = new MyGLRenderer(source, direction, context);
 
         setRenderer(renderer);
-        setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
+        setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
     }
    @Override
    public boolean onTouchEvent(MotionEvent e) {
