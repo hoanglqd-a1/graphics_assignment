@@ -6,14 +6,17 @@ import android.opengl.GLES30;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
 import java.io.*;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 import android.content.res.AssetManager;
 import android.content.Context;
 import android.util.Log;
 
+import com.example.computergraphics.acceleratedCollisionDetection.CollisionGrid;
 import com.example.computergraphics.object.*;
 import com.example.computergraphics.utils.MatrixUtils;
 import com.example.computergraphics.utils.Utility;
@@ -25,9 +28,11 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
     private GraphicObject object;
     private Cube cube;
     private GraphicObject model;
+    private CollisionGrid grid;
     private Line line;
     private Cube [] cubes;
     private Line [] lines;
+    private List<GraphicObject> triangles;
     private GroupedGraphicObjects groupedObjects;
     private float [] vpMatrix = new float[16];
     private float [] projectionMatrix = new float[16];
@@ -44,7 +49,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
     public void onSurfaceCreated(GL10 unused, EGLConfig config) {
         GLES30.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT | GLES30.GL_DEPTH_BUFFER_BIT);
-		GLES30.glEnable(GLES30.GL_CULL_FACE);
+//		GLES30.glEnable(GLES30.GL_CULL_FACE);
         GLES30.glEnable(GLES30.GL_DEPTH_TEST);
         GLES30.glLineWidth(10.0f);
 
@@ -60,7 +65,7 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         }
         Random random = new Random();
         cubes = new Cube[10];
-        lines = new Line[100];
+        lines = new Line[1];
         for(int i=0; i<cubes.length; i++){
             cubes[i] = new Cube(context);
             cubes[i].setTranslation(
@@ -87,18 +92,36 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         int copies = 100;
         float[] instancedModelMatrices = new float[copies * 16];
         for(int i=0; i<copies; i++){
-            float[] transalation = MatrixUtils.add(
+            float[] translation = MatrixUtils.add(
                 MatrixUtils.mul(
                     MatrixUtils.generateRandomVector(3),
                     2
                 ), new float[] {-1f, -1f, -1f}
             );
-            float[] scale = new float[] {0.5f, 0.5f, 0.5f};
-            float[] rotation = MatrixUtils.generateRandomVector(3);
-            float[] modelMatrix = Utility.getModelMatrix(transalation, rotation, scale);
+            float[] scale = new float[] {0.1f, 0.1f, 0.1f};
+            float[] rotation = MatrixUtils.mul(MatrixUtils.generateRandomVector(3), 360f);
+            float[] modelMatrix = Utility.getModelMatrix(translation, rotation, scale);
             System.arraycopy(modelMatrix, 0, instancedModelMatrices, i * 16, 16);
         }
         groupedObjects = new GroupedGraphicObjects(context, copies, instancedModelMatrices);
+        triangles = new ArrayList<>();
+        int triangle_count = 1000;
+        for(int i=0; i<triangle_count; i++){
+            GraphicObject triangle = new GraphicObject(context);
+            float[] translation = MatrixUtils.add(
+                    MatrixUtils.mul(
+                            MatrixUtils.generateRandomVector(3),
+                            4
+                    ), new float[] {-2f, -2f, -2f}
+            );
+            float[] scale = new float[] {1f, 1f, 1f};
+            float[] rotation = MatrixUtils.mul(MatrixUtils.generateRandomVector(3), 360f);
+            triangle.setTranslation(translation);
+            triangle.setRotation(rotation);
+            triangle.setScale(scale);
+            triangles.add(triangle);
+        }
+        grid = new CollisionGrid(triangles);
     }
     private long lastTime = System.nanoTime();
     private int frames;
@@ -116,6 +139,11 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
         Matrix.setLookAtM(viewMatrix, 0, eye[0], eye[1], eye[2], 0f, 0f, 0f, 0f, 1.0f, 0.0f);
         Matrix.multiplyMM(vpMatrix, 0, projectionMatrix, 0, viewMatrix, 0);
         Matrix.setRotateM(rotationMatrix, 0, mAngle, 0f, 1.0f, 0.0f);
+
+        float [] Identity = new float[16];
+        Matrix.setIdentityM(Identity, 0);
+
+        long start = System.nanoTime();
 
 //        object.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
 //        cube.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
@@ -153,7 +181,74 @@ public class MyGLRenderer implements GLSurfaceView.Renderer {
 //                }
 //            }
 //        }
-        groupedObjects.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//        groupedObjects.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+
+//        for(int i=0; i<triangles.size(); i++){
+//            triangles.get(i).draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//        }
+//        List<float[][]> groundTruth = new ArrayList<>();
+        for (Line line : lines) {
+            for (int i = 0; i < triangles.size(); i++) {
+                List<float[][]> intersectionList = triangles.get(i).getIntersectionsWithLine(line);
+//                groundTruth.addAll(intersectionList);
+                for (float[][] intersections : intersectionList) {
+                    if (intersections.length == 1) {
+                        Point p = new Point(intersections[0], context);
+//                        p.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+                        Log.d("collision detection", "Naive " + Arrays.toString(intersections[0]));
+                    } else if (intersections.length == 2) {
+                        Line l = new Line(intersections[0], intersections[1], context);
+//                        l.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+                    }
+                }
+            }
+        }
+//        groundTruth.sort((a, b) -> {
+//            int cmpX = Float.compare(a[0][0], b[0][0]);
+//            if (cmpX != 0) return cmpX;
+//            int cmpY = Float.compare(a[0][1], b[0][1]);
+//            if (cmpY != 0) return cmpY;
+//            return Float.compare(a[0][2], b[0][2]);
+//        });
+//        List<float[][]> prediction = new ArrayList<>();
+//        for(Line line : lines){
+//            List<float[][]> intersectionList = grid.getIntersectionWithLine(line);
+////            prediction.addAll(intersectionList);
+//            for(float[][] intersections : intersectionList){
+//                if(intersections.length == 1){
+//                    Point p = new Point(intersections[0], context);
+////                    p.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//                    Log.d("collision detection", "Grid-based " + Arrays.toString(intersections[0]));
+//
+//                }
+//                else if(intersections.length == 2){
+//                    Line l = new Line(intersections[0], intersections[1], context);
+////                    l.draw(viewMatrix, projectionMatrix, rotationMatrix, eye);
+//                }
+//            }
+//        }
+//        prediction.sort((a, b) -> {
+//            int cmpX = Float.compare(a[0][0], b[0][0]);
+//            if (cmpX != 0) return cmpX;
+//            int cmpY = Float.compare(a[0][1], b[0][1]);
+//            if (cmpY != 0) return cmpY;
+//            return Float.compare(a[0][2], b[0][2]);
+//        });
+//        float loss = 0f;
+//        for(int i=0; i<prediction.size(); i++){
+//            if(i>=groundTruth.size())
+//                loss += Math.abs(prediction.get(i)[0][0]) + Math.abs(prediction.get(i)[0][1] + Math.abs(prediction.get(i)[0][2]));
+//            else{
+//                loss += Math.abs(prediction.get(i)[0][0] - groundTruth.get(i)[0][0])
+//                        + Math.abs(prediction.get(i)[0][1] - groundTruth.get(i)[0][1])
+//                        + Math.abs(prediction.get(i)[0][2] - groundTruth.get(i)[0][2]);
+//            }
+//        }
+        Log.d("Experiment", "Line count=" + lines.length);
+        Log.d("Experiment", "Triangle count=" + triangles.size());
+//        Log.d("Experiment", "Loss=" + loss);
+        long end = System.nanoTime();
+        Log.d("Experiment", "Execution time " + (end - start) / 1_000_000.0 + " ms");
     }
     public void onSurfaceChanged(GL10 unused, int width, int height) {
         GLES30.glViewport(0, 0, width, height);

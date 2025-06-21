@@ -23,6 +23,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class GraphicObject {
@@ -339,7 +340,6 @@ public class GraphicObject {
 
         // Set color for drawing the triangle
         GLES30.glUniform4fv(colorHandle, 1, color, 0);
-
         modelMatrix = Utility.getModelMatrix(translation, rotation, scale);
         Matrix.multiplyMM(modelMatrix, 0, worldRotationMatrix, 0, modelMatrix, 0);
         float [] vpMatrix = new float[16];
@@ -455,6 +455,12 @@ public class GraphicObject {
     }
     public void setTranslation(float [] translation){
         this.translation = translation;
+    }
+    public void setRotation(float[] rotation){
+        this.rotation = rotation;
+    }
+    public void setScale(float[] scale){
+        this.scale = scale;
     }
     public float [] getWorldVertices(){
         float [] modelMatrix = Utility.getModelMatrix(translation, rotation, scale);

@@ -38,4 +38,9 @@ public class Utility {
         Matrix.scaleM(modelMatrix, 0, scale[0], scale[1], scale[2]);
         return modelMatrix;
     }
+    public static float[] Union(float[] range1, float[] range2){
+        float[] union = {Math.max(range1[0], range2[0]), Math.min(range1[1], range2[1])};
+        if (union[0] > union[1]) return null;
+        return union;
+    }
 }

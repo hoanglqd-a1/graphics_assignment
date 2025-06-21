@@ -10,6 +10,7 @@ import com.example.computergraphics.utils.MatrixUtils;
 import com.example.computergraphics.utils.Utility;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class Line extends GraphicObject {
@@ -126,6 +127,18 @@ public class Line extends GraphicObject {
 
         // Disable vertex array
         GLES30.glDisableVertexAttribArray(positionHandle);
+    }
+    public float[] getWorldSource(){
+        float[] modelMatrix = Utility.getModelMatrix(translation, rotation, scale);
+        float[] worldSource = new float[] {source[0], source[1], source[2], 1};
+        Matrix.multiplyMV(worldSource, 0, modelMatrix, 0, worldSource, 0);
+        return new float[] {worldSource[0], worldSource[1], worldSource[2]};
+    }
+    public float[] getWorldDirection(){
+        float[] modelMatrix = Utility.getModelMatrix(translation, rotation, scale);
+        float[] worldDirection = new float[] {direction[0], direction[1], direction[2], 1};
+        Matrix.multiplyMV(worldDirection, 0, modelMatrix, 0, worldDirection, 0);
+        return new float[] {worldDirection[0], worldDirection[1], worldDirection[2]};
     }
 }
 
