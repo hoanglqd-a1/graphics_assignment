@@ -4,20 +4,20 @@ import android.content.Context;
 import android.opengl.GLSurfaceView;
 import android.view.MotionEvent;
 
-class MyGLSurfaceView extends GLSurfaceView {
+public class MyGLSurfaceView extends GLSurfaceView {
 
     private final MyGLRenderer renderer;
     private float previousX;
     private float previousY;
 
-    public MyGLSurfaceView(Context context){
+    public MyGLSurfaceView(Context context, float [] source, float [] direct){
         super(context);
 
         // Create an OpenGL ES 2.0 context
         setEGLContextClientVersion(2);
         setEGLConfigChooser(8, 8, 8, 8, 16, 0);
 
-        renderer = new MyGLRenderer(context);
+        renderer = new MyGLRenderer(context, source, direct);
 
         setRenderer(renderer);
         setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);

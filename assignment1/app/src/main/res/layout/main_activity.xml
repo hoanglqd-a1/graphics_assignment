@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="16dp"
-    tools:context=".MainActivity">
+    tools:context=".activity.MainActivity">
 
     <TextView
         android:id="@+id/textView"
@@ -18,7 +18,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Starting point 1 (x1, y1, z1):"
+        android:text="Starting point (x, y, z):"
         android:textSize="18sp"
         android:textStyle="bold" />
 
@@ -32,7 +32,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="x1"
+            android:hint="x"
             android:inputType="numberDecimal|numberSigned"
             android:minHeight="48dp" />
 
@@ -41,7 +41,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="y1"
+            android:hint="y"
             android:inputType="numberDecimal|numberSigned"
             android:minHeight="48dp" />
         <EditText
@@ -49,7 +49,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="z1"
+            android:hint="z"
             android:inputType="numberDecimal|numberSigned"
             android:minHeight="48dp" />
     </LinearLayout>
@@ -58,7 +58,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="Direction 2 (x2, y2, z2):"
+        android:text="Direction (x, y, z):"
         android:textSize="18sp"
         android:textStyle="bold" />
 
@@ -72,7 +72,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="x2"
+            android:hint="x"
             android:inputType="numberDecimal|numberSigned"
             android:minHeight="48dp" />
 
@@ -81,7 +81,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="y2"
+            android:hint="y"
             android:inputType="numberDecimal|numberSigned"
             android:minHeight="48dp" />
         <EditText
@@ -89,13 +89,13 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="z2"
+            android:hint="z"
             android:inputType="numberDecimal|numberSigned"
             android:minHeight="48dp" />
     </LinearLayout>
 
     <Button
-        android:id="@+id/buttonCalculate"
+        android:id="@+id/enterButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
